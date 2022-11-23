@@ -1,467 +1,183 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:async';
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart' as shelf_router;
-//import 'package:shelf_static/shelf_static.dart' as shelf_static;
-import 'package:http/http.dart' as http;
-import 'package:args/args.dart';
-//import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
+import 'dart:developer' as developer;
 
 const defaultApiUriStr =
     'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
 const defaultPort = 8501;
-// const _useXdg = true;
 
-Uri? optionalParseUri(String? s) => s == null ? null : Uri.parse(s);
+final Uri _url = Uri.parse(
+  'https://amigos-users.auth.us-west-2.amazoncognito.com/login?client_id=260fm8860vbaltkflng33m75bv&response_type=code&scope=email+openid&redirect_uri=http%3A//localhost%3A8501/',
+);
 
-String _jsonEncode(Object? data) =>
-    const JsonEncoder.withIndent(' ').convert(data);
-
-void _logger(String msg, [bool isError = false]) {
-  if (isError) {
-    stderr.writeln('[ERROR] $msg');
-  } else {
-    stderr.writeln(msg);
-  }
+void main() {
+  developer.log("main starting, uri=${Uri.base}");
+  runApp(const MyApp());
 }
 
-class ApiInfo {
-  final Uri apiUri;
-  final String clientSecret;
-  final String clientId;
-  final Uri cognitoUri;
-  final Uri loginUri;
-  final Uri logoutUri;
-  final Uri tokenUri;
-  final Uri userInfoUri;
-  late String tokenAuthHeader;
+final GoRouter _router = GoRouter(
+  routes: [
+    GoRoute(
+      path: "/",
+      builder: (context, state) =>
+          const MyHomePage(title: 'Flutter Demo Home Page'),
+    ),
+    GoRoute(
+      path: "/on-login",
+      builder: (context, state) =>
+          const OnLoginPage(title: 'On-login redirect page'),
+    )
+  ],
+);
 
-  ApiInfo._createFinal({
-    required this.apiUri,
-    required this.clientSecret,
-    required this.clientId,
-    required this.cognitoUri,
-    required this.loginUri,
-    required this.logoutUri,
-    required this.tokenUri,
-    required this.userInfoUri,
-  }) {
-    final secretValue = "$clientId:$clientSecret";
-    final secretBase64 = base64.encode(utf8.encode(secretValue));
-    tokenAuthHeader = "Basic $secretBase64";
-  }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  ApiInfo._create(
-    Uri apiUri,
-    String clientSecret,
-    String clientId,
-    Uri cognitoUri,
-    Uri? loginUri,
-    Uri? logoutUri,
-    Uri? tokenUri,
-    Uri? userInfoUri,
-  ) : this._createFinal(
-          apiUri: apiUri,
-          clientSecret: clientSecret,
-          clientId: clientId,
-          cognitoUri: cognitoUri,
-          loginUri: loginUri ?? cognitoUri.resolve('login'),
-          logoutUri: logoutUri ?? cognitoUri.resolve('logout'),
-          tokenUri: tokenUri ?? cognitoUri.resolve('oauth2/token'),
-          userInfoUri: userInfoUri ?? cognitoUri.resolve('oauth2/userInfo'),
-        );
-
-  static Future<Map<String, dynamic>> _getApiInfoData(Uri apiUri) async {
-    final client = http.Client();
-    try {
-      final infoUri = apiUri.resolve('info');
-      final response = await client.get(infoUri);
-      if (response.statusCode != 200) {
-        throw HttpException(
-          "Bad HTTP status code ${response.statusCode} in API info response",
-          uri: infoUri,
-        );
-      }
-      final decodedResponse = jsonDecode(
-        utf8.decode(response.bodyBytes),
-      ) as Map<String, dynamic>;
-      return decodedResponse;
-    } finally {
-      client.close();
-    }
-  }
-
-  static Future<ApiInfo> retrieve(Uri apiUri, String clientSecret) async {
-    final data = await _getApiInfoData(apiUri);
-    // print(_jsonEncode(data));
-    final apiInfo = ApiInfo._create(
-      apiUri,
-      clientSecret,
-      data['user_pool_client_id'],
-      Uri.parse(data['user_pool_endpoint']),
-      optionalParseUri(data['login_uri']),
-      optionalParseUri(data['logout_uri']),
-      optionalParseUri(data['token_endpoint']),
-      optionalParseUri(data['user_info_endpoint']),
-    );
-    return apiInfo;
-  }
-}
-
-class AuthorizationException implements Exception {
-  final String error;
-  final String? description;
-  final Uri? uri;
-
-  AuthorizationException(this.error, this.description, this.uri);
-
-  /// Provides a string description of the AuthorizationException.
+  // This widget is the root of your application.
   @override
-  String toString() {
-    var header = 'OAuth authorization error ($error)';
-    if (description != null) {
-      header = '$header: $description';
-    } else if (uri != null) {
-      header = '$header: $uri';
-    }
-    return '$header.';
+  Widget build(BuildContext context) {
+    developer.log('app building, uri=${Uri.base}');
+    return MaterialApp.router(
+      routerConfig: _router,
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        // This is the theme of your application.
+        //
+        // Try running your application with "flutter run". You'll see the
+        // application has a blue toolbar. Then, without quitting the app, try
+        // changing the primarySwatch below to Colors.green and then invoke
+        // "hot reload" (press "r" in the console where you ran "flutter run",
+        // or simply save your changes to "hot reload" in a Flutter IDE).
+        // Notice that the counter didn't reset back to zero; the application
+        // is not restarted.
+        primarySwatch: Colors.blue,
+      ),
+    );
   }
 }
 
-class Creds {
-  final String accessToken;
-  final String idToken;
-  final String? refreshToken;
-  final int expireSeconds;
+class OnLoginPage extends StatelessWidget {
+  /// Creates a [Page1Screen].
+  const OnLoginPage({super.key, required this.title});
 
-  Creds({
-    required this.accessToken,
-    required this.idToken,
-    required this.expireSeconds,
-    this.refreshToken,
-  });
-}
-
-class AsyncAuthCodeGetter {
-  final _completer = Completer<String>();
-  final ApiInfo apiInfo;
-  final int port;
-  late Uri loginRedirectUri;
-
-  AsyncAuthCodeGetter({required this.apiInfo, required this.port}) {
-    loginRedirectUri = Uri.parse('http://localhost:$port/');
-  }
-
-  Uri getLoginUri() {
-    final Map<String, String> queryParams = {
-      'client_id': apiInfo.clientId,
-      'scope': 'email openid',
-      'response_type': 'code',
-      'redirect_uri': loginRedirectUri.toString()
-    };
-    final loginUri = apiInfo.cognitoUri
-        .resolve('login')
-        .replace(queryParameters: queryParams);
-    return loginUri;
-  }
-
-  Future<String> run() async {
-    // final staticHandler = shelf_static.createStaticHandler(
-    //   'public',
-    //   defaultDocument: 'index.html',
-    // );
-
-    final router = shelf_router.Router()..get('/', mainHandler);
-    final cascade = Cascade()
-        // .add(staticHandler)
-        .add(router);
-    final server = await shelf_io.serve(
-      logRequests(logger: _logger).addHandler(cascade.handler),
-      '127.0.0.1', // Do not allow external connections
-      port,
-    );
-
-    _logger('Serving at http://${server.address.host}:${server.port}/');
-
-    final loginUri = getLoginUri();
-
-    _logger("launching browser");
-
-    // NOTE: This will only work on linux.  Fix for windows/macos.
-    final browserLaunch = await Process.run(
-      'xdg-open',
-      [
-        loginUri.toString(),
-      ],
-    );
-
-    _logger(browserLaunch.stdout);
-    _logger(browserLaunch.stderr);
-
-    _logger("Browser launched; waiting for auth complete");
-
-    final authCode = await _completer.future;
-
-    _logger("auth-getter future completed; shutting down http server");
-
-    await server.close();
-
-    return authCode;
-  }
-
-  static const _jsonHeaders = {
-    'content-type': 'application/json',
-  };
-
-  Response mainHandler(Request request) {
-    try {
-      final params = request.url.queryParameters;
-      if (params.containsKey('error')) {
-        final description = params['error_description'];
-        final uriString = params['error_uri'];
-        final uri = uriString == null ? null : Uri.parse(uriString);
-        throw AuthorizationException(params['error']!, description, uri);
-      } else if (params.containsKey('code')) {
-        final String authCode = params['code'] as String;
-        final result = Response(
-          200,
-          headers: {
-            ..._jsonHeaders,
-            'Cache-Control': 'no-store',
-          },
-          body: _jsonEncode(
-            {
-              'code': authCode,
-            },
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              ElevatedButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Go to main page'),
+              ),
+            ],
           ),
-        );
-        _logger("completing auth-getter future");
-        _completer.complete(authCode);
-        return result;
-        /*
-      } else if (params.containsKey("action")) {
-        final action = params['action'];
-        if (action == "logout") {
-          final result = Response(
-            200,
-            headers: {
-              ..._jsonHeaders,
-              'Cache-Control': 'no-store',
-            },
-            body: _jsonEncode(
-              {
-                'action': 'logout',
-              },
-            ),
-          );
-          return result;
-        } else {
-          final result = Response(
-            501,
-            headers: {
-              ..._jsonHeaders,
-              'Cache-Control': 'no-store',
-            },
-            body: _jsonEncode(
-              {
-                'error': 'Unrecognized action',
-                'action': action,
-              },
-            ),
-          );
-          return result;
-        }
-        */
-      } else {
-        final Map<String, String> queryParams = {
-          'client_id': apiInfo.clientId,
-          'scope': 'email openid',
-          'response_type': 'code',
-          'redirect_uri': loginRedirectUri.toString()
-        };
-        final redirectUri = apiInfo.cognitoUri
-            .resolve('login')
-            .replace(queryParameters: queryParams);
-        final result = Response(
-          200,
-          headers: {
-            ..._jsonHeaders,
-            'Cache-Control': 'no-store',
-          },
-          body: _jsonEncode(
-            {
-              'redirect_uri': redirectUri.toString(),
-              'query_parameters': params,
-            },
-          ),
-        );
-
-        return result;
-      }
-    } catch (e) {
-      _completer.completeError(e);
-      rethrow;
-    }
-  }
-}
-
-Future<Map<String, dynamic>> getTokensFromAuthCode({
-  required ApiInfo apiInfo,
-  required String authCode,
-  required Uri redirectUri,
-}) async {
-  final client = http.Client();
-  try {
-    final Map<String, String> headers = {
-      "Authorization": apiInfo.tokenAuthHeader,
-    };
-    final Map<String, String> queryParameters = {
-      "grant_type": "authorization_code",
-      "client_id": apiInfo.clientId,
-      "code": authCode,
-      "redirect_uri": redirectUri.toString(),
-    };
-    final response = await client.post(
-      apiInfo.tokenUri,
-      /* Uri.parse('https://ptsv2.com/t/5q3gk-1669016556/post'), */
-      headers: headers,
-      body: queryParameters,
-    );
-    if (response.statusCode != 200) {
-      throw HttpException(
-        "Bad HTTP status code ${response.statusCode} in token endpoint response",
-        uri: apiInfo.tokenUri,
+        ),
       );
-    }
-    // print(response.toString());
-    final decodedResponse = jsonDecode(
-      utf8.decode(response.bodyBytes),
-    ) as Map<String, dynamic>;
-    // print(decodedResponse.toString());
-    return decodedResponse;
-  } finally {
-    client.close();
+
+  final String title;
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+
+  // This widget is the home page of your application. It is stateful, meaning
+  // that it has a State object (defined below) that contains fields that affect
+  // how it looks.
+
+  // This class is the configuration for the state. It holds the values (in this
+  // case the title) provided by the parent (in this case the App widget) and
+  // used by the build method of the State. Fields in a Widget subclass are
+  // always marked "final".
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  int _counter = 0;
+
+  void _incrementCounter() {
+    setState(() {
+      // This call to setState tells the Flutter framework that something has
+      // changed in this State, which causes it to rerun the build method below
+      // so that the display can reflect the updated values. If we changed
+      // _counter without calling setState(), then the build method would not be
+      // called again, and so nothing would appear to happen.
+      _counter++;
+    });
   }
-}
 
-Future<Creds> getCredsFromAuthCode({
-  required ApiInfo apiInfo,
-  required String authCode,
-  required Uri redirectUri,
-}) async {
-  final tokens = await getTokensFromAuthCode(
-    apiInfo: apiInfo,
-    authCode: authCode,
-    redirectUri: redirectUri,
-  );
-  final creds = Creds(
-    accessToken: tokens['access_token'],
-    idToken: tokens['id_token'],
-    refreshToken: tokens['refresh_token'],
-    expireSeconds: tokens['expires_in'],
-  );
-  return creds;
-}
-
-Future<Creds> authenticate(
-  ApiInfo apiInfo,
-  int? port,
-) async {
-  final authCodeGetter =
-      AsyncAuthCodeGetter(apiInfo: apiInfo, port: port ?? 8501);
-  final authCode = await authCodeGetter.run();
-  final creds = await getCredsFromAuthCode(
-    apiInfo: apiInfo,
-    authCode: authCode,
-    redirectUri: authCodeGetter.loginRedirectUri,
-  );
-  return creds;
-}
-
-Uri ensureUriEndsWithSlash(Uri uri) {
-  String uriStr = uri.toString();
-  if (!uriStr.endsWith('/')) {
-    uri = Uri.parse('$uriStr/');
-  }
-  return uri;
-}
-
-Future<void> main(List<String> arguments) async {
-  exitCode = 0; // presume success
-  final parser = ArgParser()
-    ..addFlag(
-      'help',
-      abbr: 'h',
-      negatable: false,
-      help: 'Display usage info.',
-    )
-    ..addOption(
-      'client-secret',
-      abbr: 's',
-      defaultsTo: null,
-      help: 'Set the OAUTH2 client secret. '
-          'By default, environment variable CLIENT_SECRET is used.',
-    )
-    ..addOption(
-      'api-uri',
-      abbr: 'u',
-      defaultsTo: null,
-      help: 'Set the base API URI. By default, environment variable '
-          'API_URI is used; if that is not set, "$defaultApiUriStr" is used.',
-    )
-    ..addOption(
-      'port',
-      abbr: 'p',
-      defaultsTo: "$defaultPort",
-      help:
-          ' Set the localhost port use for intercepting login redirect HTTP request. '
-          'http://localhost:<port>/ must be be an approved redirect URI in Cognito. '
-          'By default, $defaultPort is used.',
+  @override
+  Widget build(BuildContext context) {
+    // This method is rerun every time setState is called, for instance as done
+    // by the _incrementCounter method above.
+    //
+    // The Flutter framework has been optimized to make rerunning build methods
+    // fast, so that you can just rebuild anything that needs updating rather
+    // than having to individually change instances of widgets.
+    developer.log('home page state building, uri=${Uri.base}');
+    return Scaffold(
+      appBar: AppBar(
+        // Here we take the value from the MyHomePage object that was created by
+        // the App.build method, and use it to set our appbar title.
+        title: Text(widget.title),
+      ),
+      body: Center(
+        // Center is a layout widget. It takes a single child and positions it
+        // in the middle of the parent.
+        child: Column(
+          // Column is also a layout widget. It takes a list of children and
+          // arranges them vertically. By default, it sizes itself to fit its
+          // children horizontally, and tries to be as tall as its parent.
+          //
+          // Invoke "debug painting" (press "p" in the console, choose the
+          // "Toggle Debug Paint" action from the Flutter Inspector in Android
+          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
+          // to see the wireframe for each widget.
+          //
+          // Column has various properties to control how it sizes itself and
+          // how it positions its children. Here we use mainAxisAlignment to
+          // center the children vertically; the main axis here is the vertical
+          // axis because Columns are vertical (the cross axis would be
+          // horizontal).
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Text(
+              'You have pushed the button this many times:',
+            ),
+            Text(
+              '$_counter',
+              style: Theme.of(context).textTheme.headline4,
+            ),
+            const ElevatedButton(
+              onPressed: _launchUrl,
+              child: Text('Login'),
+            ),
+            const Text(
+              'The current URI is: ',
+            ),
+            Text(
+              '${Uri.base}',
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _incrementCounter,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
-
-  ArgResults argResults;
-  String clientSecret;
-  try {
-    argResults = parser.parse(arguments);
-    if (argResults['help']) {
-      stdout.writeln(parser.usage);
-      return;
-    }
-    clientSecret = argResults['client-secret'] ??
-        Platform.environment['CLIENT_SECRET'] ??
-        '';
-    if (clientSecret == '') {
-      throw const FormatException(
-        'OAUTH2 client secret must be provided with --client-secret or in environment variable CLIENT_SECRET',
-      );
-    }
-  } on FormatException catch (e) {
-    stderr.writeln(parser.usage);
-    stderr.writeln("$e");
-    exitCode = 1;
-    return;
   }
+}
 
-  final String apiUriStr = argResults['api-uri'] ??
-      Platform.environment['API_URI'] ??
-      defaultApiUriStr;
-  var apiUri = ensureUriEndsWithSlash(Uri.parse(apiUriStr));
-
-  final port = int.parse(argResults['port']);
-
-  final apiInfo = await ApiInfo.retrieve(apiUri, clientSecret);
-
-  final creds = await authenticate(apiInfo, port);
-  final summary = {
-    'accessToken': creds.accessToken,
-    'idToken': creds.idToken,
-    'refreshToken': creds.refreshToken,
-    'expireSeconds': creds.expireSeconds,
-  };
-
-  const encoder = JsonEncoder.withIndent('  ');
-  final prettyprint = encoder.convert(summary);
-  stdout.writeln(prettyprint);
+Future<void> _launchUrl() async {
+  if (!await launchUrl(_url, webOnlyWindowName: '_self')) {
+    throw 'Could not launch $_url';
+  }
 }
