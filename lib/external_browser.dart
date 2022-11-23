@@ -11,28 +11,30 @@ import 'creds.dart';
 
 Future<void> externalBrowserLaunchUri(Uri uri) async {
   String launcher;
+  bool runInShell = false;
+  List<String> cmdArgs = [ uri.toString() ];
   if (Platform.isLinux) {
     launcher = 'xdg-open';
   } else if (Platform.isMacOS) {
     launcher = 'open';
   } else if (Platform.isWindows) {
-    launcher = 'start';
+    launcher = 'rundll32.exe';
+    cmdArgs = [ "url.dll,FileProtocolHandler", uri.toString() ];
+    //runInShell = true;
   } else {
     throw "Don't know how to launch URL on platform ${Platform.operatingSystem}";
   }
 
-  stderrLogger("launching browser with '$launcher' comand at uri '$uri'");
-  // NOTE: This will only work on linux.  Fix for windows/macos.
+  stderrLogger("launching browser with prog='$launcher', args=$cmdArgs");
   final browserLaunch = await Process.run(
     launcher,
-    [
-      uri.toString(),
-    ],
+    cmdArgs,
+    runInShell: runInShell,
   );
   if (browserLaunch.exitCode != 0) {
     stderrLogger(browserLaunch.stdout);
     stderrLogger(browserLaunch.stderr);
-    throw "Could not launch browser with '$launcher' command: exit code ${browserLaunch.exitCode}";
+    throw "Could not launch browser with prog='$launcher', args=$cmdArgs: exit code ${browserLaunch.exitCode}";
   }
   stderrLogger('Browser launched');
 }
