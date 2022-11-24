@@ -42,6 +42,22 @@ dependencies:
   http: ^0.13.5
   shelf_router: ^1.1.3
   go_router: ^5.2.0
+  flutter_web_auth:
+    git:
+      url: https://github.com/amigos-dev/flutter_web_auth.git
+      ref: amigos
+
+#dependency_overrides:
+#  flutter_web_auth_platform_interface:
+#    git:
+#      url: https://github.com/Jon-Salmon/flutter_web_auth.git
+#      ref: windows-implementation
+#      path: flutter_web_auth_platform_interface
+#  flutter_web_auth_windows:
+#    git:
+#      url: https://github.com/Jon-Salmon/flutter_web_auth.git
+#      ref: windows-implementation
+#      path: flutter_web_auth_windows
 
 dev_dependencies:
   flutter_test:

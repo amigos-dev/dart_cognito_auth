@@ -1,18 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+//import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer' as developer;
+import 'creds.dart';
+import 'api_info.dart';
+import 'external_browser.dart';
+// import 'dart:io';
+// import 'package:flutter_web_auth/flutter_web_auth.dart';
 
 const defaultApiUriStr =
     'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
-const defaultPort = 8501;
+const defaultPortStr = '8501';
 
-final Uri _url = Uri.parse(
-  'https://amigos-users.auth.us-west-2.amazoncognito.com/login?client_id=260fm8860vbaltkflng33m75bv&response_type=code&scope=email+openid&redirect_uri=http%3A//localhost%3A8501/',
-);
+const apiUriStr =
+    String.fromEnvironment('API_URI', defaultValue: defaultApiUriStr);
+const portStr = String.fromEnvironment('PORT', defaultValue: defaultPortStr);
 
-void main() {
-  developer.log("main starting, uri=${Uri.base}");
+final apiUri = Uri.parse(apiUriStr);
+final port = int.parse(portStr);
+const String? clientSecret = bool.hasEnvironment('CLIENT_SECRET')
+    ? String.fromEnvironment('CLIENT_SECRET')
+    : null;
+late ApiInfo apiInfo;
+
+void main() async {
+  developer.log("main starting, uri=${Uri.base}, clientSecret=$clientSecret");
+  if (clientSecret == null) {
+    throw "CLIENT_SECRET is null";
+  }
+  apiInfo = await ApiInfo.retrieve(apiUri, clientSecret);
   runApp(const MyApp());
 }
 
@@ -100,6 +116,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  Creds? creds;
 
   void _incrementCounter() {
     setState(() {
@@ -110,6 +127,22 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+  }
+
+  void _onLogin(Creds creds) {
+    developer.log('Login complete, creds=$creds');
+  }
+
+  void _onLoginError(Object? error, StackTrace stackTrace) {
+    developer.log('Login failed, error=$error, stackTrace=$stackTrace');
+  }
+
+  void _doLogin() {
+    externalBrowserAuthenticate(
+      cognitoUri: apiInfo.cognitoUri,
+      clientId: apiInfo.clientId,
+      clientSecret: apiInfo.clientSecret,
+    ).then(_onLogin).onError(_onLoginError);
   }
 
   @override
@@ -154,9 +187,9 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headline4,
             ),
-            const ElevatedButton(
-              onPressed: _launchUrl,
-              child: Text('Login'),
+            ElevatedButton(
+              onPressed: () => _doLogin(),
+              child: const Text('Login'),
             ),
             const Text(
               'The current URI is: ',
@@ -175,9 +208,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
+/*
 Future<void> _launchUrl() async {
   if (!await launchUrl(_url, webOnlyWindowName: '_self')) {
     throw 'Could not launch $_url';
   }
 }
+*/

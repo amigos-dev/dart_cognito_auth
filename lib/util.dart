@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:cognito_login_cli/desktop_util.dart';
 import 'package:http/http.dart' as http;
 import 'creds.dart';
 
@@ -65,6 +66,8 @@ Future<Map<String, dynamic>> getTokensFromAuthCode({
       "code": authCode,
       "redirect_uri": redirectUri.toString(),
     };
+    stderrLogger(
+        'Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
     final response = await client.post(
       tokenUri,
       headers: headers,
@@ -94,6 +97,7 @@ Future<Creds> getCredsFromAuthCode({
   required String authCode,
   required Uri redirectUri,
 }) async {
+  final authTime = DateTime.now().toUtc();
   final tokens = await getTokensFromAuthCode(
     tokenUri: tokenUri,
     clientId: clientId,
@@ -106,6 +110,7 @@ Future<Creds> getCredsFromAuthCode({
     idToken: tokens['id_token'],
     refreshToken: tokens['refresh_token'],
     expireSeconds: tokens['expires_in'],
+    authTime: authTime,
   );
   return creds;
 }

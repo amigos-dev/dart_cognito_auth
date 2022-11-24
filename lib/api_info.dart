@@ -8,7 +8,7 @@ import 'creds.dart';
 
 class ApiInfo {
   final Uri apiUri;
-  final String clientSecret;
+  final String? clientSecret;
   final String clientId;
   final Uri cognitoUri;
   final Uri loginUri;
@@ -34,7 +34,7 @@ class ApiInfo {
 
   ApiInfo._create(
     Uri apiUri,
-    String clientSecret,
+    String? clientSecret,
     String clientId,
     Uri cognitoUri,
     Uri? loginUri,
@@ -72,7 +72,7 @@ class ApiInfo {
     }
   }
 
-  static Future<ApiInfo> retrieve(Uri apiUri, String clientSecret) async {
+  static Future<ApiInfo> retrieve(Uri apiUri, String? clientSecret) async {
     final data = await _getApiInfoData(apiUri);
     // print(_jsonEncode(data));
     final apiInfo = ApiInfo._create(

@@ -74,6 +74,15 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_web_auth:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: amigos
+      resolved-ref: d9fe83fdd6af3b6d40fb2640265d15b3da3d960d
+      url: "https://github.com/amigos-dev/flutter_web_auth.git"
+    source: git
+    version: "0.5.0"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
