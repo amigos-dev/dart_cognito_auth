@@ -12,14 +12,14 @@ import 'creds.dart';
 Future<void> externalBrowserLaunchUri(Uri uri) async {
   String launcher;
   bool runInShell = false;
-  List<String> cmdArgs = [ uri.toString() ];
+  List<String> cmdArgs = [uri.toString()];
   if (Platform.isLinux) {
     launcher = 'xdg-open';
   } else if (Platform.isMacOS) {
     launcher = 'open';
   } else if (Platform.isWindows) {
     launcher = 'rundll32.exe';
-    cmdArgs = [ "url.dll,FileProtocolHandler", uri.toString() ];
+    cmdArgs = ["url.dll,FileProtocolHandler", uri.toString()];
     //runInShell = true;
   } else {
     throw "Don't know how to launch URL on platform ${Platform.operatingSystem}";
@@ -188,11 +188,13 @@ Future<Creds> externalBrowserAuthenticate({
   required Uri cognitoUri,
   required String clientId,
   String? clientSecret,
+  List<String>? scopes,
   int? port,
 }) async {
   final authCodeGetter = ExternalBrowserAuthCodeGetter(
     cognitoUri: cognitoUri,
     clientId: clientId,
+    scopes: scopes,
     port: port ?? 8501,
   );
   final authCode = await authCodeGetter.run();

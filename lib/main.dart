@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:developer' as developer;
 import 'creds.dart';
 import 'api_info.dart';
-import 'external_browser.dart';
+import 'browser_auth.dart';
 // import 'dart:io';
 // import 'package:flutter_web_auth/flutter_web_auth.dart';
 
@@ -138,7 +138,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _doLogin() {
-    externalBrowserAuthenticate(
+    browserAuthenticate(
       cognitoUri: apiInfo.cognitoUri,
       clientId: apiInfo.clientId,
       clientSecret: apiInfo.clientSecret,
