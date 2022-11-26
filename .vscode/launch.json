@@ -42,6 +42,17 @@
             ]
         },
         {
+            "name": "flutter_main (Windows debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "Windows",
+            "toolArgs": [
+                "--dart-define",
+                "CLIENT_SECRET=${input:clientSecret}",
+            ]
+        },
+        {
             "name": "flutter_main (web debug)",
             "request": "launch",
             "type": "dart",
