@@ -1,19 +1,24 @@
 import 'dart:math';
+import 'access_token.dart';
+import 'id_token.dart';
 
 class Creds {
-  final String accessToken;
-  final String idToken;
+  late AccessToken accessToken;
+  late IdToken idToken;
   final String? refreshToken;
   final int expireSeconds;
   final DateTime authTime;
 
   Creds({
-    required this.accessToken,
-    required this.idToken,
+    required String rawAccessToken,
+    required String rawIdToken,
     required this.expireSeconds,
     this.refreshToken,
     required this.authTime,
-  });
+  }) {
+    accessToken = AccessToken(rawToken: rawAccessToken);
+    idToken = IdToken(rawToken: rawIdToken);
+  }
 
   double getRemainingSeconds() {
     final currentMs = DateTime.now().toUtc().millisecondsSinceEpoch;

@@ -188,9 +188,25 @@ Future<Creds> externalBrowserAuthenticate({
   required Uri cognitoUri,
   required String clientId,
   String? clientSecret,
+  String? refreshToken,
   List<String>? scopes,
   int? port,
 }) async {
+  final tokenUri = cognitoUri.resolve('oauth2/token');
+  Creds creds;
+  if (refreshToken != null) {
+    try {
+      creds = await refreshCreds(
+          tokenUri: tokenUri,
+          clientId: clientId,
+          clientSecret: clientSecret,
+          refreshToken: refreshToken);
+      return creds;
+    } on AuthorizationException {
+      // fall through to regular web auth
+    }
+  }
+
   final authCodeGetter = ExternalBrowserAuthCodeGetter(
     cognitoUri: cognitoUri,
     clientId: clientId,
@@ -198,8 +214,7 @@ Future<Creds> externalBrowserAuthenticate({
     port: port ?? 8501,
   );
   final authCode = await authCodeGetter.run();
-  final tokenUri = cognitoUri.resolve('oauth2/token');
-  final creds = await getCredsFromAuthCode(
+  creds = await getCredsFromAuthCode(
     tokenUri: tokenUri,
     clientId: clientId,
     clientSecret: clientSecret,

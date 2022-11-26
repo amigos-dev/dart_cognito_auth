@@ -46,6 +46,8 @@ dependencies:
     git:
       url: https://github.com/amigos-dev/flutter_web_auth.git
       ref: amigos
+  jwt_decoder: ^2.0.1
+  mutex: ^3.0.0
 
 #dependency_overrides:
 #  flutter_web_auth_platform_interface:

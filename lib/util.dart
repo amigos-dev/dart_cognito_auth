@@ -106,11 +106,104 @@ Future<Creds> getCredsFromAuthCode({
     redirectUri: redirectUri,
   );
   final creds = Creds(
-    accessToken: tokens['access_token'],
-    idToken: tokens['id_token'],
+    rawAccessToken: tokens['access_token'],
+    rawIdToken: tokens['id_token'],
     refreshToken: tokens['refresh_token'],
     expireSeconds: tokens['expires_in'],
     authTime: authTime,
   );
   return creds;
+}
+
+Future<Map<String, dynamic>> refreshTokens({
+  required Uri tokenUri,
+  required String clientId,
+  String? clientSecret,
+  required String refreshToken,
+}) async {
+  final client = http.Client();
+  try {
+    final Map<String, String> headers = {};
+    if (clientSecret != null) {
+      headers["Authorization"] = getTokenAuthorizationHeader(
+          clientId: clientId, clientSecret: clientSecret);
+    }
+    final Map<String, String> queryParameters = {
+      "grant_type": "refresh_token",
+      "client_id": clientId,
+      "refresh_token": refreshToken,
+    };
+    stderrLogger(
+        'Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
+    final response = await client.post(
+      tokenUri,
+      headers: headers,
+      body: queryParameters,
+    );
+    if (response.statusCode != 200) {
+      throw HttpException(
+        "Bad HTTP status code ${response.statusCode} in token endpoint response",
+        uri: tokenUri,
+      );
+    }
+    // print(response.toString());
+    final decodedResponse = jsonDecode(
+      utf8.decode(response.bodyBytes),
+    ) as Map<String, dynamic>;
+    // print(decodedResponse.toString());
+    return decodedResponse;
+  } finally {
+    client.close();
+  }
+}
+
+Future<Creds> refreshCreds({
+  required Uri tokenUri,
+  required String clientId,
+  String? clientSecret,
+  required String refreshToken,
+}) async {
+  final authTime = DateTime.now().toUtc();
+  final tokens = await refreshTokens(
+    tokenUri: tokenUri,
+    clientId: clientId,
+    clientSecret: clientSecret,
+    refreshToken: refreshToken,
+  );
+  final creds = Creds(
+    rawAccessToken: tokens['access_token'],
+    rawIdToken: tokens['id_token'],
+    refreshToken: refreshToken,
+    expireSeconds: tokens['expires_in'],
+    authTime: authTime,
+  );
+  return creds;
+}
+
+Future<Map<String, dynamic>> getUserOauthMetadata({
+  required Uri userInfoUri,
+  required String accessToken,
+}) async {
+  final client = http.Client();
+  try {
+    final Map<String, String> headers = {
+      'Authorization': 'Bearer $accessToken'
+    };
+    final response = await client.get(
+      userInfoUri,
+      headers: headers,
+    );
+    if (response.statusCode != 200) {
+      throw HttpException(
+        "Bad HTTP status code ${response.statusCode} in userInfo endpoint response",
+        uri: userInfoUri,
+      );
+    }
+    final decodedResponse = jsonDecode(
+      utf8.decode(response.bodyBytes),
+    ) as Map<String, dynamic>;
+    return decodedResponse;
+  } finally {
+    client.close();
+  }
 }

@@ -1,3 +1,4 @@
+import 'user_info.dart';
 import 'package:flutter/material.dart';
 //import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
@@ -131,10 +132,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _onLogin(Creds creds) {
     developer.log('Login complete, creds=$creds');
+    setState(() {
+      this.creds = creds;
+    });
+    UserInfo.retrieve(
+      cognitoUri: apiInfo.cognitoUri,
+      accessToken: creds.accessToken,
+    ).then((userInfo) {
+      developer.log('Got UserInfo=$userInfo');
+    }).onError((error, stackTrace) {
+      developer.log('UserInfo retrieve failed');
+      _onLoginError(error, stackTrace);
+    });
   }
 
   void _onLoginError(Object? error, StackTrace stackTrace) {
-    developer.log('Login failed, error=$error, stackTrace=$stackTrace');
+    developer.log('Login failed, error=$error, stackTrace=\n$stackTrace');
   }
 
   void _doLogin() {
@@ -191,8 +204,8 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () => _doLogin(),
               child: const Text('Login'),
             ),
-            const Text(
-              'The current URI is: ',
+            Text(
+              'Current creds are: $creds',
             ),
             Text(
               '${Uri.base}',
@@ -208,10 +221,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-/*
-Future<void> _launchUrl() async {
-  if (!await launchUrl(_url, webOnlyWindowName: '_self')) {
-    throw 'Could not launch $_url';
-  }
-}
-*/

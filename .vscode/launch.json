@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "dart_cognito_login_cli",
             "request": "launch",
@@ -17,6 +18,32 @@
             "toolArgs": [
                 "--dart-define",
                 "CLIENT_SECRET=${input:clientSecret}",
+            ]
+        },
+        {
+            "name": "flutter_main (iPhone debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "iPhone",
+            "toolArgs": [
+                "--dart-define",
+                "CLIENT_SECRET=${input:clientSecret}",
+            ]
+        },
+        {
+            "name": "flutter_main (web debug)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "flutterMode": "debug",
+            "toolArgs": [
+                "--web-port",
+                "8501",
+                "--dart-define",
+                "CLIENT_SECRET=${input:clientSecret}",
+                "--dart-define",
+                "PORT=8501",
             ]
         },
         {
