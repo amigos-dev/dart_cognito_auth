@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "dart_cognito_login_cli",
             "request": "launch",
@@ -26,6 +25,17 @@
             "type": "dart",
             "flutterMode": "debug",
             "deviceId": "iPhone",
+            "toolArgs": [
+                "--dart-define",
+                "CLIENT_SECRET=${input:clientSecret}",
+            ]
+        },
+        {
+            "name": "flutter_main (macOS debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "macOS",
             "toolArgs": [
                 "--dart-define",
                 "CLIENT_SECRET=${input:clientSecret}",

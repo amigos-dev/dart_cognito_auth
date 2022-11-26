@@ -204,8 +204,11 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () => _doLogin(),
               child: const Text('Login'),
             ),
-            Text(
-              'Current creds are: $creds',
+            SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Text(
+                'Current creds are: $creds',
+              ),
             ),
             Text(
               '${Uri.base}',
