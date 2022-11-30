@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:args/args.dart';
-import 'util.dart';
-import 'external_browser.dart';
-import 'api_info.dart';
+import 'cognito_auth/dart_cognito_auth.dart';
 
 const defaultApiUriStr =
     'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
@@ -83,8 +81,8 @@ Future<void> main(List<String> arguments) async {
   );
 
   final summary = {
-    'accessToken': creds.accessToken,
-    'idToken': creds.idToken,
+    'accessToken': creds.accessToken.rawToken,
+    'idToken': creds.idToken.rawToken,
     'refreshToken': creds.refreshToken,
     'expireSeconds': creds.expireSeconds,
   };

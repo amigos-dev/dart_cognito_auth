@@ -48,6 +48,7 @@ dependencies:
   jwt_decoder: ^2.0.1
   mutex: ^3.0.0
   diagonal_scrollview: ^0.2.0+1
+  universal_html: ^2.0.8
 
 #dependency_overrides:
 #  flutter_web_auth_platform_interface:

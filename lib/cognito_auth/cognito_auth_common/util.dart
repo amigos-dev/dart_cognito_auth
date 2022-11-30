@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:cognito_login_cli/desktop_util.dart';
+import '../cognito_auth_desktop/desktop_util.dart';
 import 'package:http/http.dart' as http;
 import 'creds.dart';
 

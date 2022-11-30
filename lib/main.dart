@@ -1,13 +1,7 @@
-import 'user_info.dart';
+import 'cognito_auth/cognito_auth.dart';
 import 'package:flutter/material.dart';
-//import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer' as developer;
-import 'creds.dart';
-import 'api_info.dart';
-import 'browser_auth.dart';
-// import 'dart:io';
-// import 'package:flutter_web_auth/flutter_web_auth.dart';
 
 const defaultApiUriStr =
     'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
@@ -30,33 +24,40 @@ void main() async {
     throw "CLIENT_SECRET is null";
   }
   apiInfo = await ApiInfo.retrieve(apiUri, clientSecret);
-  runApp(const MyApp());
+  runApp(MyApp(
+    initialUri: Uri.base,
+  ));
 }
 
-final GoRouter _router = GoRouter(
-  routes: [
-    GoRoute(
-      path: "/",
-      builder: (context, state) =>
-          const MyHomePage(title: 'Flutter Demo Home Page'),
-    ),
-    GoRoute(
-      path: "/on-login",
-      builder: (context, state) =>
-          const OnLoginPage(title: 'On-login redirect page'),
-    )
-  ],
-);
-
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Uri initialUri;
+
+  const MyApp({super.key, required this.initialUri});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    developer.log('app building, uri=${Uri.base}');
+    developer.log('app building, uri=${Uri.base}, initialUri=$initialUri');
+
+    final GoRouter router = GoRouter(
+      routes: [
+        GoRoute(
+          path: "/",
+          builder: (context, state) => MyHomePage(
+            title: 'Flutter Demo Home Page',
+            initialUri: initialUri,
+          ),
+        ),
+        GoRoute(
+          path: "/on-login",
+          builder: (context, state) =>
+              const OnLoginPage(title: 'On-login redirect page'),
+        )
+      ],
+    );
+
     return MaterialApp.router(
-      routerConfig: _router,
+      routerConfig: router,
       title: 'Flutter Demo',
       theme: ThemeData(
         // This is the theme of your application.
@@ -98,7 +99,7 @@ class OnLoginPage extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, required this.initialUri});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -110,6 +111,7 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
+  final Uri initialUri;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -198,7 +200,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Text(
               '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             ElevatedButton(
               onPressed: () => _doLogin(),
@@ -211,7 +213,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             Text(
-              '${Uri.base}',
+              'Uri.base=${Uri.base}, initialUri=${widget.initialUri}',
             ),
           ],
         ),

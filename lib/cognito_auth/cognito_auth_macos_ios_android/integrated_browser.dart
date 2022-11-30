@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
-import 'util.dart';
-import 'util.dart' as util;
-import 'creds.dart';
+import '../cognito_auth_common/util.dart';
+import '../cognito_auth_common/util.dart' as util;
+import '../cognito_auth_common/creds.dart';
 import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'dart:developer' as developer;
-import 'authorization_exception.dart';
+import '../cognito_auth_common/authorization_exception.dart';
 
 Future<Creds> integratedBrowserAuthenticate({
   required Uri cognitoUri,
@@ -39,7 +39,7 @@ Future<Creds> integratedBrowserAuthenticate({
   }
 
   callbackUrlScheme = callbackUrlScheme ?? "dev.amigos.cognito-auth";
-  final redirectUri = Uri.parse("$callbackUrlScheme://on-login");
+  final redirectUri = Uri.parse("$callbackUrlScheme://");
   final loginUri = util.getLoginUri(
     cognitoUri: cognitoUri,
     clientId: clientId,

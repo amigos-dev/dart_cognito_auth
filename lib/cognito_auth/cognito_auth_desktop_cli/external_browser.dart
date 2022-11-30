@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart' as shelf_router;
-import 'desktop_util.dart';
-import 'util.dart';
-import 'util.dart' as util;
-import 'authorization_exception.dart';
-import 'creds.dart';
+import '../cognito_auth_desktop/desktop_util.dart';
+import '../cognito_auth_common/util.dart';
+import '../cognito_auth_common/util.dart' as util;
+import '../cognito_auth_common/authorization_exception.dart';
+import '../cognito_auth_common/creds.dart';
 
 Future<void> externalBrowserLaunchUri(Uri uri) async {
   String launcher;

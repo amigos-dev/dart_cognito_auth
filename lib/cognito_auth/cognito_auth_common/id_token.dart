@@ -1,3 +1,4 @@
+
 import 'jwt_token.dart';
 
 class IdToken extends JwtToken {
