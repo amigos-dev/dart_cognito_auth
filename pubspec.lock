@@ -105,11 +105,9 @@ packages:
   flutter_web_auth:
     dependency: "direct main"
     description:
-      path: "."
-      ref: amigos
-      resolved-ref: d9fe83fdd6af3b6d40fb2640265d15b3da3d960d
-      url: "https://github.com/amigos-dev/flutter_web_auth.git"
-    source: git
+      name: flutter_web_auth
+      url: "https://pub.dartlang.org"
+    source: hosted
     version: "0.5.0"
   flutter_web_plugins:
     dependency: transitive
