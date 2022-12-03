@@ -16,24 +16,18 @@ Future<Creds> integratedBrowserAuthenticate({
   String? refreshToken,
   int? port,
   String? callbackUrlScheme,
+  bool? forceNew,
 }) async {
   final tokenUri = cognitoUri.resolve('oauth2/token');
   Creds creds;
   if (refreshToken != null) {
-    developer.log(
-        "integratedBrowserAuthenticate: Attempting to refresh credentials, refresh_token=$refreshToken");
+    developer.log("integratedBrowserAuthenticate: Attempting to refresh credentials, refresh_token=$refreshToken");
     try {
-      creds = await refreshCreds(
-          tokenUri: tokenUri,
-          clientId: clientId,
-          clientSecret: clientSecret,
-          refreshToken: refreshToken);
-      developer.log(
-          "integratedBrowserAuthenticate: Refreshed credentials: creds=$creds");
+      creds = await refreshCreds(tokenUri: tokenUri, clientId: clientId, clientSecret: clientSecret, refreshToken: refreshToken);
+      developer.log("integratedBrowserAuthenticate: Refreshed credentials: creds=$creds");
       return creds;
     } on AuthorizationException catch (e) {
-      developer.log(
-          "integratedBrowserAuthenticate: Refresh credentials failed, falling back to browser login: $e");
+      developer.log("integratedBrowserAuthenticate: Refresh credentials failed, falling back to browser login: $e");
       // fall through to regular web auth
     }
   }
@@ -45,9 +39,9 @@ Future<Creds> integratedBrowserAuthenticate({
     clientId: clientId,
     redirectUri: redirectUri,
     scopes: scopes,
+    forceNew: forceNew,
   );
-  developer.log(
-      'integratedBrowserAuthenticate: Invoking flutter_web_auth, uri=$loginUri, callbackUrlScheme=$callbackUrlScheme');
+  developer.log('integratedBrowserAuthenticate: Invoking flutter_web_auth, uri=$loginUri, callbackUrlScheme=$callbackUrlScheme');
   String authCode;
   try {
     final resultUriStr = await FlutterWebAuth.authenticate(
@@ -55,13 +49,11 @@ Future<Creds> integratedBrowserAuthenticate({
       callbackUrlScheme: callbackUrlScheme,
       preferEphemeral: true,
     );
-    developer.log(
-        'integratedBrowserAuthenticate: Back from flutter_web_auth, uri=$resultUriStr');
+    developer.log('integratedBrowserAuthenticate: Back from flutter_web_auth, uri=$resultUriStr');
     final resultUri = Uri.parse(resultUriStr);
     authCode = resultUri.queryParameters['code'] as String;
   } on PlatformException catch (e) {
-    developer.log(
-        'integratedBrowserAuthenticate: flutter_web_auth threw PlatformException: $e');
+    developer.log('integratedBrowserAuthenticate: flutter_web_auth threw PlatformException: $e');
     throw AuthorizationException("Integrated web login failed", "$e", loginUri);
   }
 

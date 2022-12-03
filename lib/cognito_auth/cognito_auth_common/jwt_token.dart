@@ -23,7 +23,7 @@ class JwtToken {
 
   // Returns a list of the cognito groups the user is a member of
   List<String> get cognitoGroups {
-    return properties['cognito:groups'] ?? [];
+    return List<String>.from(properties['cognito:groups'] ?? [], growable: false);
   }
 
   // Returns the OAUTH2 username. This is normally an opaque ID that the user never sees, but

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Landing page for OAUTH2 authorization code redirect.">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Login Succeeded</title>
+
+  <script>
+    var serviceWorkerVersion = null;
+  </script>
+</head>
+<body>
+  <script>
+    window.addEventListener('load', function(ev) {
+      var urlParams = new URLSearchParams(window.location.search);      
+      window.opener.postMessage({ "name": "on-login", "query-string": window.location.search }, "*");      
+    });
+  </script>
+  <p>Login was successful, please wait for redirection...</p>
+</body>
+</html>

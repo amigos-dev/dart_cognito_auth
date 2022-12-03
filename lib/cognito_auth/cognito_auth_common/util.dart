@@ -1,13 +1,12 @@
 import 'dart:io';
 import 'dart:convert';
-import '../cognito_auth_desktop/desktop_util.dart';
 import 'package:http/http.dart' as http;
 import 'creds.dart';
+import 'dart:developer' as developer;
 
 Uri? optionalParseUri(String? s) => s == null ? null : Uri.parse(s);
 
-String jsonEncode(Object? data) =>
-    const JsonEncoder.withIndent(' ').convert(data);
+String jsonEncode(Object? data) => const JsonEncoder.withIndent(' ').convert(data);
 
 Uri ensureUriEndsWithSlash(Uri uri) {
   String uriStr = uri.toString();
@@ -22,17 +21,14 @@ Uri getLoginUri({
   required String clientId,
   required Uri redirectUri,
   List<String>? scopes,
+  bool? forceNew,
 }) {
-  Map<String, String> queryParams = {
-    'client_id': clientId,
-    'response_type': 'code',
-    'redirect_uri': redirectUri.toString()
-  };
+  forceNew = forceNew ?? false;
+  Map<String, String> queryParams = {'client_id': clientId, 'response_type': 'code', 'redirect_uri': redirectUri.toString()};
   if (scopes != null && scopes.isNotEmpty) {
     queryParams['scope'] = scopes.join(' ');
   }
-  final loginUri =
-      cognitoUri.resolve('login').replace(queryParameters: queryParams);
+  final loginUri = cognitoUri.resolve(forceNew ? 'logout' : 'login').replace(queryParameters: queryParams);
   return loginUri;
 }
 
@@ -52,13 +48,13 @@ Future<Map<String, dynamic>> getTokensFromAuthCode({
   String? clientSecret,
   required String authCode,
   required Uri redirectUri,
+  http.Client? httpClient,
 }) async {
-  final client = http.Client();
+  final client = httpClient ?? http.Client();
   try {
     final Map<String, String> headers = {};
     if (clientSecret != null) {
-      headers["Authorization"] = getTokenAuthorizationHeader(
-          clientId: clientId, clientSecret: clientSecret);
+      headers["Authorization"] = getTokenAuthorizationHeader(clientId: clientId, clientSecret: clientSecret);
     }
     final Map<String, String> queryParameters = {
       "grant_type": "authorization_code",
@@ -66,8 +62,7 @@ Future<Map<String, dynamic>> getTokensFromAuthCode({
       "code": authCode,
       "redirect_uri": redirectUri.toString(),
     };
-    stderrLogger(
-        'Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
+    developer.log('Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
     final response = await client.post(
       tokenUri,
       headers: headers,
@@ -86,7 +81,9 @@ Future<Map<String, dynamic>> getTokensFromAuthCode({
     // print(decodedResponse.toString());
     return decodedResponse;
   } finally {
-    client.close();
+    if (httpClient == null) {
+      client.close();
+    }
   }
 }
 
@@ -96,6 +93,7 @@ Future<Creds> getCredsFromAuthCode({
   String? clientSecret,
   required String authCode,
   required Uri redirectUri,
+  http.Client? httpClient,
 }) async {
   final authTime = DateTime.now().toUtc();
   final tokens = await getTokensFromAuthCode(
@@ -104,6 +102,7 @@ Future<Creds> getCredsFromAuthCode({
     clientSecret: clientSecret,
     authCode: authCode,
     redirectUri: redirectUri,
+    httpClient: httpClient,
   );
   final creds = Creds(
     rawAccessToken: tokens['access_token'],
@@ -120,21 +119,20 @@ Future<Map<String, dynamic>> refreshTokens({
   required String clientId,
   String? clientSecret,
   required String refreshToken,
+  http.Client? httpClient,
 }) async {
-  final client = http.Client();
+  final client = httpClient ?? http.Client();
   try {
     final Map<String, String> headers = {};
     if (clientSecret != null) {
-      headers["Authorization"] = getTokenAuthorizationHeader(
-          clientId: clientId, clientSecret: clientSecret);
+      headers["Authorization"] = getTokenAuthorizationHeader(clientId: clientId, clientSecret: clientSecret);
     }
     final Map<String, String> queryParameters = {
       "grant_type": "refresh_token",
       "client_id": clientId,
       "refresh_token": refreshToken,
     };
-    stderrLogger(
-        'Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
+    developer.log('Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
     final response = await client.post(
       tokenUri,
       headers: headers,
@@ -153,7 +151,9 @@ Future<Map<String, dynamic>> refreshTokens({
     // print(decodedResponse.toString());
     return decodedResponse;
   } finally {
-    client.close();
+    if (httpClient == null) {
+      client.close();
+    }
   }
 }
 
@@ -162,6 +162,7 @@ Future<Creds> refreshCreds({
   required String clientId,
   String? clientSecret,
   required String refreshToken,
+  http.Client? httpClient,
 }) async {
   final authTime = DateTime.now().toUtc();
   final tokens = await refreshTokens(
@@ -169,6 +170,7 @@ Future<Creds> refreshCreds({
     clientId: clientId,
     clientSecret: clientSecret,
     refreshToken: refreshToken,
+    httpClient: httpClient,
   );
   final creds = Creds(
     rawAccessToken: tokens['access_token'],
@@ -183,12 +185,11 @@ Future<Creds> refreshCreds({
 Future<Map<String, dynamic>> getUserOauthMetadata({
   required Uri userInfoUri,
   required String accessToken,
+  http.Client? httpClient,
 }) async {
-  final client = http.Client();
+  final client = httpClient ?? http.Client();
   try {
-    final Map<String, String> headers = {
-      'Authorization': 'Bearer $accessToken'
-    };
+    final Map<String, String> headers = {'Authorization': 'Bearer $accessToken'};
     final response = await client.get(
       userInfoUri,
       headers: headers,
@@ -204,6 +205,8 @@ Future<Map<String, dynamic>> getUserOauthMetadata({
     ) as Map<String, dynamic>;
     return decodedResponse;
   } finally {
-    client.close();
+    if (httpClient == null) {
+      client.close();
+    }
   }
 }

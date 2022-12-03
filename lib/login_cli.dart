@@ -4,8 +4,7 @@ import 'dart:async';
 import 'package:args/args.dart';
 import 'cognito_auth/dart_cognito_auth.dart';
 
-const defaultApiUriStr =
-    'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
+const defaultApiUriStr = 'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
 const defaultPort = 8501;
 
 Future<void> main(List<String> arguments) async {
@@ -35,8 +34,7 @@ Future<void> main(List<String> arguments) async {
       'port',
       abbr: 'p',
       defaultsTo: "$defaultPort",
-      help:
-          ' Set the localhost port use for intercepting login redirect HTTP request. '
+      help: ' Set the localhost port use for intercepting login redirect HTTP request. '
           'http://localhost:<port>/ must be be an approved redirect URI in Cognito. '
           'By default, $defaultPort is used.',
     );
@@ -49,9 +47,7 @@ Future<void> main(List<String> arguments) async {
       stdout.writeln(parser.usage);
       return;
     }
-    clientSecret = argResults['client-secret'] ??
-        Platform.environment['CLIENT_SECRET'] ??
-        '';
+    clientSecret = argResults['client-secret'] ?? Platform.environment['CLIENT_SECRET'] ?? '';
     if (clientSecret == '') {
       throw const FormatException(
         'OAUTH2 client secret must be provided with --client-secret or in environment variable CLIENT_SECRET',
@@ -64,14 +60,12 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final String apiUriStr = argResults['api-uri'] ??
-      Platform.environment['API_URI'] ??
-      defaultApiUriStr;
+  final String apiUriStr = argResults['api-uri'] ?? Platform.environment['API_URI'] ?? defaultApiUriStr;
   var apiUri = ensureUriEndsWithSlash(Uri.parse(apiUriStr));
 
   final port = int.parse(argResults['port']);
 
-  final apiInfo = await ApiInfo.retrieve(apiUri, clientSecret);
+  final apiInfo = await ApiInfo.retrieve(apiUri: apiUri, clientSecret: clientSecret);
 
   final creds = await externalBrowserAuthenticate(
     cognitoUri: apiInfo.cognitoUri,

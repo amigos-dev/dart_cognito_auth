@@ -2,20 +2,17 @@ import 'cognito_auth/cognito_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer' as developer;
+import 'package:provider/provider.dart';
 
-const defaultApiUriStr =
-    'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
+const defaultApiUriStr = 'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
 const defaultPortStr = '8501';
 
-const apiUriStr =
-    String.fromEnvironment('API_URI', defaultValue: defaultApiUriStr);
+const apiUriStr = String.fromEnvironment('API_URI', defaultValue: defaultApiUriStr);
 const portStr = String.fromEnvironment('PORT', defaultValue: defaultPortStr);
 
 final apiUri = Uri.parse(apiUriStr);
 final port = int.parse(portStr);
-const String? clientSecret = bool.hasEnvironment('CLIENT_SECRET')
-    ? String.fromEnvironment('CLIENT_SECRET')
-    : null;
+const String? clientSecret = bool.hasEnvironment('CLIENT_SECRET') ? String.fromEnvironment('CLIENT_SECRET') : null;
 late ApiInfo apiInfo;
 
 void main() async {
@@ -23,36 +20,29 @@ void main() async {
   if (clientSecret == null) {
     throw "CLIENT_SECRET is null";
   }
-  apiInfo = await ApiInfo.retrieve(apiUri, clientSecret);
-  runApp(MyApp(
-    initialUri: Uri.base,
+  final authConfig = await AuthConfig.fromApiInfo(apiUri: apiUri);
+  runApp(ChangeNotifierProvider(
+    create: (_) => CredsModel(authConfig: authConfig),
+    child: const MyApp(),
   ));
 }
 
 class MyApp extends StatelessWidget {
-  final Uri initialUri;
-
-  const MyApp({super.key, required this.initialUri});
+  const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    developer.log('app building, uri=${Uri.base}, initialUri=$initialUri');
+    developer.log('app building, uri=${Uri.base}');
 
     final GoRouter router = GoRouter(
       routes: [
         GoRoute(
           path: "/",
-          builder: (context, state) => MyHomePage(
+          builder: (context, state) => const MyHomePage(
             title: 'Flutter Demo Home Page',
-            initialUri: initialUri,
           ),
         ),
-        GoRoute(
-          path: "/on-login",
-          builder: (context, state) =>
-              const OnLoginPage(title: 'On-login redirect page'),
-        )
       ],
     );
 
@@ -75,31 +65,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class OnLoginPage extends StatelessWidget {
-  /// Creates a [Page1Screen].
-  const OnLoginPage({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              ElevatedButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Go to main page'),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  final String title;
-}
-
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title, required this.initialUri});
+  const MyHomePage({super.key, required this.title});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -111,7 +78,6 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
-  final Uri initialUri;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -132,34 +98,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _onLogin(Creds creds) {
-    developer.log('Login complete, creds=$creds');
-    setState(() {
-      this.creds = creds;
-    });
-    UserInfo.retrieve(
-      cognitoUri: apiInfo.cognitoUri,
-      accessToken: creds.accessToken,
-    ).then((userInfo) {
-      developer.log('Got UserInfo=$userInfo');
-    }).onError((error, stackTrace) {
-      developer.log('UserInfo retrieve failed');
-      _onLoginError(error, stackTrace);
-    });
-  }
-
-  void _onLoginError(Object? error, StackTrace stackTrace) {
-    developer.log('Login failed, error=$error, stackTrace=\n$stackTrace');
-  }
-
-  void _doLogin() {
-    browserAuthenticate(
-      cognitoUri: apiInfo.cognitoUri,
-      clientId: apiInfo.clientId,
-      clientSecret: apiInfo.clientSecret,
-    ).then(_onLogin).onError(_onLoginError);
-  }
-
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -169,6 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
     developer.log('home page state building, uri=${Uri.base}');
+    final credsModel = Provider.of<CredsModel>(context);
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -203,17 +142,22 @@ class _MyHomePageState extends State<MyHomePage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             ElevatedButton(
-              onPressed: () => _doLogin(),
+              onPressed: () {
+                credsModel.login();
+              },
               child: const Text('Login'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                credsModel.login(forceNew: true);
+              },
+              child: const Text('Logout'),
             ),
             SingleChildScrollView(
               scrollDirection: Axis.vertical,
               child: Text(
-                'Current creds are: $creds',
+                'Current creds are: email=${credsModel.idToken?.email}, cognitoGroups=${credsModel.idToken?.cognitoGroups}',
               ),
-            ),
-            Text(
-              'Uri.base=${Uri.base}, initialUri=${widget.initialUri}',
             ),
           ],
         ),

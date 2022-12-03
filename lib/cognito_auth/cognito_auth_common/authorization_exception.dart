@@ -3,7 +3,7 @@ class AuthorizationException implements Exception {
   final String? description;
   final Uri? uri;
 
-  AuthorizationException(this.error, this.description, this.uri);
+  AuthorizationException(this.error, [this.description, this.uri]);
 
   /// Provides a string description of the AuthorizationException.
   @override

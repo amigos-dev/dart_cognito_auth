@@ -72,7 +72,7 @@ class ApiInfo {
     }
   }
 
-  static Future<ApiInfo> retrieve(Uri apiUri, String? clientSecret) async {
+  static Future<ApiInfo> retrieve({required Uri apiUri, String? clientSecret}) async {
     final data = await _getApiInfoData(apiUri);
     // print(_jsonEncode(data));
     final apiInfo = ApiInfo._create(
@@ -93,11 +93,7 @@ class ApiInfo {
     required Uri redirectUri,
   }) async {
     return await util.getTokensFromAuthCode(
-        tokenUri: tokenUri,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        authCode: authCode,
-        redirectUri: redirectUri);
+        tokenUri: tokenUri, clientId: clientId, clientSecret: clientSecret, authCode: authCode, redirectUri: redirectUri);
   }
 
   Future<Creds> getCredsFromAuthCode({
@@ -105,10 +101,6 @@ class ApiInfo {
     required Uri redirectUri,
   }) async {
     return await util.getCredsFromAuthCode(
-        tokenUri: tokenUri,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        authCode: authCode,
-        redirectUri: redirectUri);
+        tokenUri: tokenUri, clientId: clientId, clientSecret: clientSecret, authCode: authCode, redirectUri: redirectUri);
   }
 }

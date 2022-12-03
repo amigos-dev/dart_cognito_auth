@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart' as shelf_router;
-import '../cognito_auth_desktop/desktop_util.dart';
 import '../cognito_auth_common/util.dart';
 import '../cognito_auth_common/util.dart' as util;
 import '../cognito_auth_common/authorization_exception.dart';
 import '../cognito_auth_common/creds.dart';
+import 'dart:developer' as developer;
 
 Future<void> externalBrowserLaunchUri(Uri uri) async {
   String launcher;
@@ -25,18 +25,18 @@ Future<void> externalBrowserLaunchUri(Uri uri) async {
     throw "Don't know how to launch URL on platform ${Platform.operatingSystem}";
   }
 
-  stderrLogger("launching browser with prog='$launcher', args=$cmdArgs");
+  developer.log("launching browser with prog='$launcher', args=$cmdArgs");
   final browserLaunch = await Process.run(
     launcher,
     cmdArgs,
     runInShell: runInShell,
   );
   if (browserLaunch.exitCode != 0) {
-    stderrLogger(browserLaunch.stdout);
-    stderrLogger(browserLaunch.stderr);
+    developer.log(browserLaunch.stdout);
+    developer.log(browserLaunch.stderr);
     throw "Could not launch browser with prog='$launcher', args=$cmdArgs: exit code ${browserLaunch.exitCode}";
   }
-  stderrLogger('Browser launched');
+  developer.log('Browser launched');
 }
 
 class ExternalBrowserAuthCodeGetter {
@@ -46,14 +46,12 @@ class ExternalBrowserAuthCodeGetter {
   final int port;
   late Uri loginRedirectUri;
   late List<String>? scopes;
+  late bool forceNew;
 
-  ExternalBrowserAuthCodeGetter(
-      {required this.cognitoUri,
-      required this.clientId,
-      this.port = 8501,
-      List<String>? scopes}) {
+  ExternalBrowserAuthCodeGetter({required this.cognitoUri, required this.clientId, this.port = 8501, List<String>? scopes, bool? forceNew}) {
     loginRedirectUri = Uri.parse('http://localhost:$port/');
     this.scopes = scopes == null ? null : List<String>.from(scopes);
+    this.forceNew = forceNew ?? false;
   }
 
   Uri getLoginUri() {
@@ -62,7 +60,12 @@ class ExternalBrowserAuthCodeGetter {
       clientId: clientId,
       redirectUri: loginRedirectUri,
       scopes: scopes,
+      forceNew: forceNew,
     );
+  }
+
+  reqLog(String message, bool isError) {
+    developer.log("${isError ? '[ERROR]' : ''}$message");
   }
 
   Future<String> run() async {
@@ -76,12 +79,12 @@ class ExternalBrowserAuthCodeGetter {
         // .add(staticHandler)
         .add(router);
     final server = await shelf_io.serve(
-      logRequests(logger: stderrLogger).addHandler(cascade.handler),
+      logRequests(logger: reqLog).addHandler(cascade.handler),
       '127.0.0.1', // Do not allow external connections
       port,
     );
 
-    stderrLogger('Serving at http://${server.address.host}:${server.port}/');
+    developer.log('Serving at http://${server.address.host}:${server.port}/');
 
     final loginUri = getLoginUri();
 
@@ -89,7 +92,7 @@ class ExternalBrowserAuthCodeGetter {
 
     final authCode = await _completer.future;
 
-    stderrLogger("auth-getter future completed; shutting down http server");
+    developer.log("auth-getter future completed; shutting down http server");
 
     await server.close();
 
@@ -122,7 +125,7 @@ class ExternalBrowserAuthCodeGetter {
             },
           ),
         );
-        stderrLogger("completing auth-getter future");
+        developer.log("completing auth-getter future");
         _completer.complete(authCode);
         return result;
         /*
@@ -191,16 +194,13 @@ Future<Creds> externalBrowserAuthenticate({
   String? refreshToken,
   List<String>? scopes,
   int? port,
+  bool? forceNew,
 }) async {
   final tokenUri = cognitoUri.resolve('oauth2/token');
   Creds creds;
   if (refreshToken != null) {
     try {
-      creds = await refreshCreds(
-          tokenUri: tokenUri,
-          clientId: clientId,
-          clientSecret: clientSecret,
-          refreshToken: refreshToken);
+      creds = await refreshCreds(tokenUri: tokenUri, clientId: clientId, clientSecret: clientSecret, refreshToken: refreshToken);
       return creds;
     } on AuthorizationException {
       // fall through to regular web auth
@@ -212,6 +212,7 @@ Future<Creds> externalBrowserAuthenticate({
     clientId: clientId,
     scopes: scopes,
     port: port ?? 8501,
+    forceNew: forceNew,
   );
   final authCode = await authCodeGetter.run();
   creds = await getCredsFromAuthCode(

@@ -46,6 +46,8 @@ dependencies:
   mutex: ^3.0.0
   diagonal_scrollview: ^0.2.0+1
   universal_html: ^2.0.8
+  meta: ^1.8.0
+  provider: ^6.0.4
 
 #dependency_overrides:
 #  flutter_web_auth_platform_interface:
