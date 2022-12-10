@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:args/args.dart';
-import 'cognito_auth/dart_cognito_auth.dart';
+import 'package:cognito_auth/cognito_auth/cognito_auth_desktop_cli/cognito_auth_desktop_cli.dart';
 
 const defaultApiUriStr = 'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
 const defaultPort = 8501;
@@ -23,6 +23,18 @@ Future<void> main(List<String> arguments) async {
       help: 'Set the OAUTH2 client secret. '
           'By default, environment variable CLIENT_SECRET is used.',
     )
+    ..addFlag(
+      'force-new',
+      abbr: 'f',
+      negatable: false,
+      help: 'Do not use refresh token or cached Cognito login; force a new login.',
+    )
+    ..addFlag(
+      'logout',
+      abbr: 'z',
+      negatable: false,
+      help: 'Do not use login; instead, logout. Removes cached refresh token and cached browser auth state.',
+    )
     ..addOption(
       'api-uri',
       abbr: 'u',
@@ -34,9 +46,8 @@ Future<void> main(List<String> arguments) async {
       'port',
       abbr: 'p',
       defaultsTo: "$defaultPort",
-      help: ' Set the localhost port use for intercepting login redirect HTTP request. '
-          'http://localhost:<port>/ must be be an approved redirect URI in Cognito. '
-          'By default, $defaultPort is used.',
+      help: 'Set the localhost port use for intercepting login redirect HTTP request. '
+          'http://localhost:<port>/ must be be an approved redirect URI in Cognito.',
     );
 
   ArgResults argResults;
@@ -62,26 +73,31 @@ Future<void> main(List<String> arguments) async {
 
   final String apiUriStr = argResults['api-uri'] ?? Platform.environment['API_URI'] ?? defaultApiUriStr;
   var apiUri = ensureUriEndsWithSlash(Uri.parse(apiUriStr));
+  final bool shouldLogout = argResults['logout'] as bool;
+  final bool forceNew = argResults['force-new'] as bool;
 
   final port = int.parse(argResults['port']);
 
-  final apiInfo = await ApiInfo.retrieve(apiUri: apiUri, clientSecret: clientSecret);
+  final authConfig = await AuthConfig.fromApiInfo(apiUri: apiUri, clientSecret: clientSecret);
 
-  final creds = await externalBrowserAuthenticate(
-    cognitoUri: apiInfo.cognitoUri,
-    clientId: apiInfo.clientId,
-    clientSecret: clientSecret,
-    port: port,
-  );
+  final authorizer = DesktopCliCognitoAuthorizer(authConfig: authConfig, port: port);
 
-  final summary = {
-    'accessToken': creds.accessToken.rawToken,
-    'idToken': creds.idToken.rawToken,
-    'refreshToken': creds.refreshToken,
-    'expireSeconds': creds.expireSeconds,
-  };
+  if (shouldLogout) {
+    await authorizer.logout();
+    stderr.writeln("Successfully logged out...");
+  } else {
+    final creds = await authorizer.login(forceNew: forceNew);
 
-  const encoder = JsonEncoder.withIndent('  ');
-  final prettyprint = encoder.convert(summary);
-  stdout.writeln(prettyprint);
+    final summary = {
+      'accessToken': creds.accessToken.rawToken,
+      'idToken': creds.idToken.rawToken,
+      'refreshToken': creds.refreshToken,
+      'expireSeconds': creds.expireSeconds,
+    };
+
+    const encoder = JsonEncoder.withIndent('  ');
+    final prettyprint = encoder.convert(summary);
+    stdout.writeln(prettyprint);
+  }
+  exit(0);
 }

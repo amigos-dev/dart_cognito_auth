@@ -143,7 +143,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             ElevatedButton(
               onPressed: () {
-                credsModel.login();
+                credsModel.loginOrRefresh();
               },
               child: const Text('Login'),
             ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import "package:universal_html/html.dart" as html;
+import "flutter_cognito_authorizer.dart";
 
 const defaultPortStr = '8501';
 const portStr = String.fromEnvironment('PORT', defaultValue: defaultPortStr);
@@ -26,7 +27,7 @@ Uri get defaultLoginCallbackUri {
       // NOTE: macOS should be using integrated browser strategy, but
       //       flutter_web_auth throws an exception in swift, so for now
       //       we will launch an external browser.
-      defaultLoginCallbackUri = Uri.parse('http://localhost:$port//');
+      defaultLoginCallbackUri = Uri.parse('http://localhost:$port/');
     } else {
       // On platforms that support an integrated browser login with a custom url scheme
       // for callbacks, we will use the custom url scheme
@@ -51,7 +52,7 @@ class CredsModel with ChangeNotifier {
     Uri? loginCallbackUri,
   }) {
     loginCallbackUri = loginCallbackUri ?? defaultLoginCallbackUri;
-    _authorizer = CognitoAuthorizer(authConfig: authConfig, loginCallbackUri: loginCallbackUri);
+    _authorizer = FlutterCognitoAuthorizer(authConfig: authConfig, loginCallbackUri: loginCallbackUri);
     _authorizer.addListener(_onAuthorizerCredsChanged);
     if (kIsWeb) {
       developer.log("CredsModel: Adding window message listener");
@@ -78,6 +79,12 @@ class CredsModel with ChangeNotifier {
     _authorizer.creds = creds;
   }
 
+  Future<void> asyncSetCreds(Creds? creds) async {
+    if (creds != null) {
+      await _authorizer.asyncSetCreds(creds);
+    }
+  }
+
   Future<Creds> refresh() async => _authorizer.refresh();
 
   double getRemainingSeconds() => _authorizer.getRemainingSeconds();
@@ -98,7 +105,7 @@ class CredsModel with ChangeNotifier {
     forceNew = forceNew ?? false;
     final loginUri = getLoginUri(forceNew: forceNew);
     if (forceNew) {
-      creds = null;
+      await asyncSetCreds(null);
     }
 
     Creds result;
@@ -121,42 +128,42 @@ class CredsModel with ChangeNotifier {
         forceNew: forceNew,
       );
     }
-    creds = result;
+    await asyncSetCreds(result);
     return result;
   }
 
-  Future<Creds> loginOrRefresh({bool? forceNew}) async {
-    final loginUri = getLoginUri(forceNew: forceNew);
-    Creds result;
+  Future<Creds> loginOrRefresh() async {
+    final loginUri = getLoginUri(forceNew: false);
+    Creds? result;
 
-    if (refreshToken != null) {
-      try {
-        result = await _authorizer.refresh();
-      } on AuthorizationException catch (e) {
-        developer.log("loginOrRefresh: Refresh credentials failed, falling back to browser login: $e");
-        // fall through to regular authorization code flow
-      }
+    try {
+      result = await _authorizer.refresh();
+    } on AuthorizationException catch (e) {
+      developer.log("loginOrRefresh: Refresh credentials failed, falling back to browser login: $e");
+      // fall through to regular authorization code flow
     }
 
-    if (kIsWeb) {
-      final completer = Completer<Creds>();
-      _loginWaiters.add(completer);
-      try {
-        html.window.open(loginUri.toString(), "_blank", 'location=yes');
-      } catch (e, stackTrace) {
-        _onAuthError(e, stackTrace);
+    if (result == null) {
+      if (kIsWeb) {
+        final completer = Completer<Creds>();
+        _loginWaiters.add(completer);
+        try {
+          html.window.open(loginUri.toString(), "_blank", 'location=yes');
+        } catch (e, stackTrace) {
+          _onAuthError(e, stackTrace);
+        }
+        result = await completer.future;
+      } else {
+        result = await browserAuthenticate(
+          cognitoUri: cognitoUri,
+          clientId: clientId,
+          clientSecret: clientSecret,
+          scopes: scopes,
+          callbackUri: loginCallbackUri,
+        );
       }
-      result = await completer.future;
-    } else {
-      result = await browserAuthenticate(
-        cognitoUri: cognitoUri,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        scopes: scopes,
-        callbackUri: loginCallbackUri,
-      );
+      await asyncSetCreds(result);
     }
-    creds = result;
     return result;
   }
 

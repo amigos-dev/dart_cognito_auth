@@ -28,8 +28,20 @@ Uri getLoginUri({
   if (scopes != null && scopes.isNotEmpty) {
     queryParams['scope'] = scopes.join(' ');
   }
+  // In cognito, the logout endpoint can also act as a login endpoint--it works the same except that
+  // any cached login state is purged before initiating a clean login...
   final loginUri = cognitoUri.resolve(forceNew ? 'logout' : 'login').replace(queryParameters: queryParams);
   return loginUri;
+}
+
+Uri getLogoutUri({
+  required Uri cognitoUri,
+  required String clientId,
+  required Uri redirectUri,
+}) {
+  Map<String, String> queryParams = {'client_id': clientId, 'logout_uri': redirectUri.toString()};
+  final logoutUri = cognitoUri.resolve('logout').replace(queryParameters: queryParams);
+  return logoutUri;
 }
 
 String getTokenAuthorizationHeader({

@@ -25,6 +25,12 @@ const defaultRefreshGraceSeconds = 60 * 3;
 const defaultApiUriStr = bool.hasEnvironment('API_URI') ? String.fromEnvironment('API_URI') : null;
 final defaultApiUri = (defaultApiUriStr == null) ? null : Uri.parse(defaultApiUriStr!);
 
+/// The default key prefix within flutter_secure_storage at which a persistent refresh token will be stored
+/// across sessions. This prefix will be concatenated with the clientID to allow for switchable clients.
+const defaultSecureStorageRefreshTokenKeyPrefix = bool.hasEnvironment('SECURE_STORAGE_REFRESH_TOKEN_KEY_PREFIX')
+    ? String.fromEnvironment('SECURE_STORAGE_REFRESH_TOKEN_KEY_PREFIX')
+    : 'ssRefreshToken';
+
 @immutable
 class AuthConfig {
   /// The Oauth2 client ID string
@@ -45,6 +51,13 @@ class AuthConfig {
   /// default, defaultRefreshGraceSeconds is used.
   final int refreshGraceSeconds;
 
+  /// The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
+  /// across sessions. This prefix will be concatenated with the clientID to allow for switchable clients.
+  final String secureStorageRefreshTokenKeyPrefix;
+
+  /// True if a persistent refresh token should be maintained in secure storage.
+  final bool usePersistentRefreshToken;
+
   /// A const constructor with no default behavior. Internal only.
   const AuthConfig._bare({
     required this.cognitoUri,
@@ -52,6 +65,8 @@ class AuthConfig {
     this.clientSecret,
     this.scopes,
     required this.refreshGraceSeconds,
+    required this.secureStorageRefreshTokenKeyPrefix,
+    required this.usePersistentRefreshToken,
   });
 
   /// Construct a Cognito auth configuration object. Parameters:
@@ -74,24 +89,39 @@ class AuthConfig {
   ///    The number of remaining seconds before the access token expires
   ///    at which it will be automatically refreshed on demand. If null,
   ///    3 minutes is used.
+  ///
+  /// secureStorageRefreshTokenKeyPrefix:
+  ///    The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
+  ///    across sessions. This prefix will be concatenated with the clientID to allow for switchable clients.
+  ///    If null, retrieved if available from environment variable SECURE_STORAGE_REFRESH_TOKEN_KEY_PREFIX. If
+  ///    not provided in the environment, then "ssRefreshToken" is used.
+  ///
+  /// usePersistentRefreshToken:
+  ///    If true, a persistent refresh token will be maiontained in secure storage. Defaults to true.
+  ///
   factory AuthConfig({
     Uri? cognitoUri,
     String? clientId,
     String? clientSecret,
     List<String>? scopes,
     int? refreshGraceSeconds,
+    String? secureStorageRefreshTokenKeyPrefix,
+    bool? usePersistentRefreshToken,
   }) {
     cognitoUri = cognitoUri ?? defaultCognitoUri;
     refreshGraceSeconds = refreshGraceSeconds ?? defaultRefreshGraceSeconds;
-
     clientId = clientId ?? defaultClientId;
     clientSecret = clientSecret ?? defaultClientSecret;
+    secureStorageRefreshTokenKeyPrefix = secureStorageRefreshTokenKeyPrefix ?? defaultSecureStorageRefreshTokenKeyPrefix;
+    usePersistentRefreshToken = usePersistentRefreshToken ?? true;
     final result = AuthConfig._bare(
       cognitoUri: cognitoUri!,
       clientId: clientId!,
       clientSecret: clientSecret,
       scopes: (scopes == null) ? null : List<String>.unmodifiable(scopes),
       refreshGraceSeconds: refreshGraceSeconds,
+      secureStorageRefreshTokenKeyPrefix: secureStorageRefreshTokenKeyPrefix,
+      usePersistentRefreshToken: usePersistentRefreshToken,
     );
     return result;
   }
@@ -116,11 +146,23 @@ class AuthConfig {
   ///    The number of remaining seconds before the access token expires
   ///    at which it will be automatically refreshed on demand. If null,
   ///    3 minutes is used.
+  ///
+  /// secureStorageRefreshTokenKeyPrefix:
+  ///    The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
+  ///    across sessions. This prefix will be concatenated with the clientID to allow for switchable clients.
+  ///    If null, retrieved if available from environment variable SECURE_STORAGE_REFRESH_TOKEN_KEY_PREFIX. If
+  ///    not provided in the environment, then "ssRefreshToken" is used.
+  ///
+  /// usePersistentRefreshToken:
+  ///    If true, a persistent refresh token will be maiontained in secure storage. Defaults to true.
+  ///
   static Future<AuthConfig> fromApiInfo({
     Uri? apiUri,
     String? clientSecret,
     List<String>? scopes,
     int? refreshGraceSeconds,
+    String? secureStorageRefreshTokenKeyPrefix,
+    bool? usePersistentRefreshToken,
   }) async {
     apiUri = apiUri ?? defaultApiUri;
     clientSecret = clientSecret ?? defaultClientSecret;
@@ -134,6 +176,8 @@ class AuthConfig {
       clientSecret: clientSecret,
       scopes: scopes,
       refreshGraceSeconds: refreshGraceSeconds,
+      secureStorageRefreshTokenKeyPrefix: secureStorageRefreshTokenKeyPrefix,
+      usePersistentRefreshToken: usePersistentRefreshToken,
     );
     return result;
   }

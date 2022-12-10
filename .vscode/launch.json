@@ -10,6 +10,17 @@
             "type": "dart"
         },
         {
+            "name": "CLI only (macOS debug)",
+            "request": "launch",
+            "type": "dart",
+            "program": "bin/login_cli.dart",
+            "deviceId": "macOS",
+            "args": [
+                "-s",
+                "${input:clientSecret}",
+            ]
+        },
+        {
             "name": "flutter_main (debug)",
             "request": "launch",
             "type": "dart",
@@ -25,6 +36,17 @@
             "type": "dart",
             "flutterMode": "debug",
             "deviceId": "iPhone",
+            "toolArgs": [
+                "--dart-define",
+                "CLIENT_SECRET=${input:clientSecret}",
+            ]
+        },
+        {
+            "name": "flutter_main (Android debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "emulator",
             "toolArgs": [
                 "--dart-define",
                 "CLIENT_SECRET=${input:clientSecret}",

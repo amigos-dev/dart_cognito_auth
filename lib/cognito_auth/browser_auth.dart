@@ -8,13 +8,48 @@ import 'cognito_auth_common/authorization_exception.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+Future<String> browserGetAuthCode({
+  required Uri cognitoUri,
+  required String clientId,
+  String? clientSecret,
+  List<String>? scopes,
+  Uri? callbackUri,
+  bool? forceNew,
+}) async {
+  String authCode;
+
+  if (kIsWeb) {
+    throw AuthorizationException("Not supported on Web platform");
+  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+    // NOTE: macOS should be using integrated browser strategy, but
+    //       flutter_web_auth throws an exception in swift, so for now
+    //       we will launch an external browser.
+    developer.log("browserAuthenticate: Logging in with external browser");
+    final port = callbackUri?.port;
+    authCode = await external_browser.externalBrowserGetAuthCode(
+      cognitoUri: cognitoUri,
+      clientId: clientId,
+      clientSecret: clientSecret,
+      port: port,
+      scopes: scopes,
+      forceNew: forceNew,
+    );
+  } else {
+    developer.log("browserAuthenticate: Logging in with integrated browser auth");
+
+    authCode = await integrated_browser.integratedBrowserGetAuthCode(
+        cognitoUri: cognitoUri, clientId: clientId, clientSecret: clientSecret, scopes: scopes, loginRedirectUri: callbackUri, forceNew: forceNew);
+  }
+  developer.log("browserAuthenticate: Browser login complete: authCode=$authCode");
+  return authCode;
+}
+
 Future<Creds> browserAuthenticate({
   required Uri cognitoUri,
   required String clientId,
   String? clientSecret,
   List<String>? scopes,
   String? refreshToken,
-  int? port,
   Uri? callbackUri,
   bool? forceNew,
 }) async {
@@ -38,6 +73,7 @@ Future<Creds> browserAuthenticate({
     //       flutter_web_auth throws an exception in swift, so for now
     //       we will launch an external browser.
     developer.log("browserAuthenticate: Logging in with external browser");
+    final port = callbackUri?.port;
     creds = await external_browser.externalBrowserAuthenticate(
       cognitoUri: cognitoUri,
       clientId: clientId,
@@ -49,15 +85,8 @@ Future<Creds> browserAuthenticate({
   } else {
     developer.log("browserAuthenticate: Logging in with integrated browser auth");
 
-    final callbackUriScheme = (callbackUri == null) ? null : callbackUri.scheme;
-
     creds = await integrated_browser.integratedBrowserAuthenticate(
-        cognitoUri: cognitoUri,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        scopes: scopes,
-        callbackUrlScheme: callbackUriScheme,
-        forceNew: forceNew);
+        cognitoUri: cognitoUri, clientId: clientId, clientSecret: clientSecret, scopes: scopes, loginRedirectUri: callbackUri, forceNew: forceNew);
   }
   developer.log("browserAuthenticate: Browser login complete: creds=$creds");
   return creds;
