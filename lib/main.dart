@@ -1,4 +1,4 @@
-import 'cognito_auth/cognito_auth.dart';
+import 'cognito_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer' as developer;

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:args/args.dart';
-import 'package:cognito_auth/cognito_auth/cognito_auth_desktop_cli/cognito_auth_desktop_cli.dart';
+import 'package:cognito_auth/dart_cognito_auth.dart';
 
 const defaultApiUriStr = 'https://5i7ip3yxdb.execute-api.us-west-2.amazonaws.com/dev/';
 const defaultPort = 8501;

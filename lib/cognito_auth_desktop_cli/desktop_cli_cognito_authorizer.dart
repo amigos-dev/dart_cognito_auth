@@ -2,7 +2,7 @@ import 'dart:async';
 import "dart:io";
 import "package:path/path.dart" as path;
 //import 'dart:developer' as developer;
-import 'package:cognito_auth/cognito_auth/cognito_auth_common/async_key_value_store.dart';
+import 'package:cognito_auth/cognito_auth_common/async_key_value_store.dart';
 
 import '../cognito_auth_common/cognito_auth_common.dart';
 import "external_browser.dart";

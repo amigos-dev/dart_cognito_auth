@@ -1,10 +1,10 @@
 import "dart:io";
 import "dart:convert";
-import 'package:cognito_auth/cognito_auth/cognito_auth_common/util.dart';
+import 'package:cognito_auth/cognito_auth_common/util.dart';
 //import 'package:flutter/foundation.dart';
 import 'package:quiver/collection.dart' show mapsEqual;
 
-import "../cognito_auth_common/async_key_value_store.dart";
+import '../cognito_auth_common/async_key_value_store.dart';
 import 'package:mutex/mutex.dart';
 import 'dart:developer' as developer;
 

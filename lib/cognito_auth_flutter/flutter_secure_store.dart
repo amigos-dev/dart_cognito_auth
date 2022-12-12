@@ -1,4 +1,4 @@
-import "../cognito_auth_common/async_key_value_store.dart";
+import '../cognito_auth_common/async_key_value_store.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class FlutterSecureStore implements AsyncKeyValueStore {
