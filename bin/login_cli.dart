@@ -91,8 +91,8 @@ Future<void> main(List<String> arguments) async {
     final summary = {
       'accessToken': creds.accessToken.rawToken,
       'idToken': creds.idToken.rawToken,
-      'refreshToken': creds.refreshToken,
-      'expireSeconds': creds.expireSeconds,
+      'refreshToken': creds.refreshToken?.serialize(),
+      'expireSeconds': creds.expireDuration.inSeconds,
     };
 
     const encoder = JsonEncoder.withIndent('  ');

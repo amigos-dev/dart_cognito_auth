@@ -7,6 +7,7 @@ import '../cognito_auth_common/util.dart';
 import '../cognito_auth_common/util.dart' as util;
 import '../cognito_auth_common/authorization_exception.dart';
 import '../cognito_auth_common/creds.dart';
+import '../cognito_auth_common/refresh_token.dart';
 import 'package:mutex/mutex.dart';
 import 'dart:developer' as developer;
 
@@ -271,7 +272,7 @@ Future<Creds> externalBrowserAuthenticate({
   required Uri cognitoUri,
   required String clientId,
   String? clientSecret,
-  String? refreshToken,
+  RefreshToken? refreshToken,
   List<String>? scopes,
   int? port,
   bool? forceNew,

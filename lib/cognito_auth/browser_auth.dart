@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'cognito_auth_common/creds.dart';
+import 'cognito_auth_common/refresh_token.dart';
 import 'cognito_auth_desktop_cli/external_browser.dart' as external_browser;
 import 'cognito_auth_macos_ios_android/integrated_browser.dart' as integrated_browser;
 import 'cognito_auth_common/util.dart';
@@ -49,7 +50,7 @@ Future<Creds> browserAuthenticate({
   required String clientId,
   String? clientSecret,
   List<String>? scopes,
-  String? refreshToken,
+  RefreshToken? refreshToken,
   Uri? callbackUri,
   bool? forceNew,
 }) async {
@@ -90,4 +91,33 @@ Future<Creds> browserAuthenticate({
   }
   developer.log("browserAuthenticate: Browser login complete: creds=$creds");
   return creds;
+}
+
+Future<void> browserLogout({
+  required Uri cognitoUri,
+  required String clientId,
+  Uri? callbackUri,
+}) async {
+  if (kIsWeb) {
+    throw AuthorizationException("Not supported on Web platform");
+  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+    // NOTE: macOS should be using integrated browser strategy, but
+    //       flutter_web_auth throws an exception in swift, so for now
+    //       we will launch an external browser.
+    developer.log("browserAuthenticate: Logging out with external browser");
+    final port = callbackUri?.port;
+    await external_browser.externalBrowserLogout(
+      cognitoUri: cognitoUri,
+      clientId: clientId,
+      port: port,
+    );
+  } else {
+    developer.log("browserAuthenticate: Logging out with integrated browser auth");
+    await integrated_browser.integratedBrowserLogout(
+      cognitoUri: cognitoUri,
+      clientId: clientId,
+      logoutRedirectUri: callbackUri,
+    );
+  }
+  developer.log("browserAuthenticate: Browser logout complete");
 }

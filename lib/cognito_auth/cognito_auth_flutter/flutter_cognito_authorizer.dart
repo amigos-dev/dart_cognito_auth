@@ -11,7 +11,7 @@ class FlutterCognitoAuthorizer extends CognitoAuthorizer {
 
   factory FlutterCognitoAuthorizer({
     required AuthConfig authConfig,
-    String? initialRefreshToken,
+    RefreshToken? initialRefreshToken,
     required Uri loginCallbackUri,
   }) {
     final refreshTokenStore = FlutterSecureStore();

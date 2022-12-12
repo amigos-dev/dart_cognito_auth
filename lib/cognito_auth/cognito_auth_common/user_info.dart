@@ -1,22 +1,31 @@
 import 'dart:async';
 import 'util.dart';
 import 'access_token.dart';
+import 'package:meta/meta.dart';
 
+@immutable
 class UserInfo {
   final Map<String, dynamic> data;
-  late String? email;
-  late String? sub;
-  late bool emailVerified;
-  late String? username;
 
-  UserInfo({
+  const UserInfo({
     required this.data,
-  }) {
-    email = data['email'] as String?;
-    sub = data['sub'] as String?;
-    username = data['username'] as String?;
+  });
+
+  String? get email {
+    return data['email'] as String?;
+  }
+
+  String? get sub {
+    return data['sub'] as String?;
+  }
+
+  String? get userId {
+    return data['username'] as String?;
+  }
+
+  bool get emailVerified {
     final emailVerifiedStr = (data['email_verified'] ?? "false") as String;
-    emailVerified = emailVerifiedStr == 'true';
+    return emailVerifiedStr == 'true';
   }
 
   @override
@@ -24,8 +33,7 @@ class UserInfo {
     return "UserInfo($data)";
   }
 
-  static Future<UserInfo> retrieve(
-      {required Uri cognitoUri, required AccessToken accessToken}) async {
+  static Future<UserInfo> retrieve({required Uri cognitoUri, required AccessToken accessToken}) async {
     final userInfoUri = cognitoUri.resolve("oauth2/userInfo");
     final data = await getUserOauthMetadata(
       userInfoUri: userInfoUri,

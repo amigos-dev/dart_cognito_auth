@@ -45,11 +45,13 @@ set defaultLoginCallbackUri(Uri uri) {
 class CredsModel with ChangeNotifier {
   late CognitoAuthorizer _authorizer;
   List<Completer<Creds>> _loginWaiters = [];
+  List<Completer<void>> _logoutWaiters = [];
 
   CredsModel({
     required AuthConfig authConfig,
     String? initialRefreshToken,
     Uri? loginCallbackUri,
+    bool initialLoginOrRefresh = true,
   }) {
     loginCallbackUri = loginCallbackUri ?? defaultLoginCallbackUri;
     _authorizer = FlutterCognitoAuthorizer(authConfig: authConfig, loginCallbackUri: loginCallbackUri);
@@ -57,6 +59,11 @@ class CredsModel with ChangeNotifier {
     if (kIsWeb) {
       developer.log("CredsModel: Adding window message listener");
       html.window.addEventListener("message", _onWindowMessageEvent);
+    }
+    if (initialLoginOrRefresh) {
+      loginOrRefresh().then((value) => null).onError((error, stackTrace) {
+        developer.log("Initial loginOrRefresh failed, error: '$error', stackTrace: $stackTrace");
+      });
     }
   }
 
@@ -67,9 +74,11 @@ class CredsModel with ChangeNotifier {
   AccessToken? get accessToken => creds?.accessToken;
   String? get rawAccessToken => accessToken?.rawToken;
   IdToken? get idToken => creds?.idToken;
-  String? get refreshToken => _authorizer.refreshToken;
+  RefreshToken? get refreshToken => _authorizer.refreshToken;
+  String? get rawRefreshToken => refreshToken?.rawToken;
   List<String>? get scopes => _authorizer.scopes;
   Uri get loginCallbackUri => _authorizer.loginCallbackUri;
+  Uri get logoutCallbackUri => _authorizer.logoutCallbackUri;
 
   Creds? get creds {
     return _authorizer.creds;
@@ -80,18 +89,28 @@ class CredsModel with ChangeNotifier {
   }
 
   Future<void> asyncSetCreds(Creds? creds) async {
-    if (creds != null) {
-      await _authorizer.asyncSetCreds(creds);
-    }
+    await _authorizer.asyncSetCreds(creds);
   }
+
+  bool get isLoggedIn => _authorizer.isLoggedIn;
 
   Future<Creds> refresh() async => _authorizer.refresh();
 
-  double getRemainingSeconds() => _authorizer.getRemainingSeconds();
+  Duration getAccessTokenRemainingDuration({Duration graceDuration = Duration.zero}) =>
+      _authorizer.getAccessTokenRemainingDuration(graceDuration: graceDuration);
 
-  bool isStale(int? minRemainingSeconds) => _authorizer.isStale(minRemainingSeconds);
+  Duration getIdTokenRemainingDuration({Duration graceDuration = Duration.zero}) =>
+      _authorizer.getIdTokenRemainingDuration(graceDuration: graceDuration);
 
-  Future<Creds> refreshIfStale({int? minRemainingSeconds}) async => _authorizer.refreshIfStale(minRemainingSeconds: minRemainingSeconds);
+  Future<Duration> getPersistedRefreshTokenRemainingDuration({Duration graceDuration = Duration.zero}) async =>
+      await _authorizer.getPersistedRefreshTokenRemainingDuration(graceDuration: graceDuration);
+
+  bool accessTokenIsStale({Duration? graceDuration}) => _authorizer.accessTokenIsStale(graceDuration: graceDuration);
+  bool idTokenIsStale({Duration? graceDuration}) => _authorizer.idTokenIsStale(graceDuration: graceDuration);
+  Future<bool> persistedRefreshTokenIsStale({Duration? graceDuration}) async =>
+      await _authorizer.persistedRefreshTokenIsStale(graceDuration: graceDuration);
+
+  Future<Creds> refreshIfAccessTokenIsStale({Duration? graceDuration}) async => _authorizer.refreshIfAccessTokenIsStale(graceDuration: graceDuration);
 
   Future<Creds> fromAuthCode(String authCode) async => _authorizer.fromAuthCode(authCode);
 
@@ -100,6 +119,7 @@ class CredsModel with ChangeNotifier {
   Future<UserInfo> getUserInfo() async => _authorizer.getUserInfo();
 
   Uri getLoginUri({bool? forceNew}) => _authorizer.getLoginUri(forceNew: forceNew);
+  Uri getLogoutUri() => _authorizer.getLogoutUri();
 
   Future<Creds> login({bool? forceNew}) async {
     forceNew = forceNew ?? false;
@@ -132,15 +152,39 @@ class CredsModel with ChangeNotifier {
     return result;
   }
 
+  Future<void> logout() async {
+    final logoutUri = getLogoutUri();
+    await asyncSetCreds(null);
+
+    if (kIsWeb) {
+      final completer = Completer<void>();
+      _logoutWaiters.add(completer);
+      try {
+        html.window.open(logoutUri.toString(), "_blank", 'location=yes');
+      } catch (e, stackTrace) {
+        _onLogoutError(e, stackTrace);
+      }
+      await completer.future;
+    } else {
+      await browserLogout(
+        cognitoUri: cognitoUri,
+        clientId: clientId,
+        callbackUri: logoutCallbackUri,
+      );
+    }
+  }
+
   Future<Creds> loginOrRefresh() async {
     final loginUri = getLoginUri(forceNew: false);
     Creds? result;
 
-    try {
-      result = await _authorizer.refresh();
-    } on AuthorizationException catch (e) {
-      developer.log("loginOrRefresh: Refresh credentials failed, falling back to browser login: $e");
-      // fall through to regular authorization code flow
+    if (!await persistedRefreshTokenIsStale()) {
+      try {
+        result = await _authorizer.refresh();
+      } on AuthorizationException catch (e) {
+        developer.log("loginOrRefresh: Refresh credentials failed, falling back to browser login: $e");
+        // fall through to regular authorization code flow
+      }
     }
 
     if (result == null) {
@@ -182,6 +226,23 @@ class CredsModel with ChangeNotifier {
     await fromAuthCode(authCode);
   }
 
+  void _onLogoutComplete() async {
+    final waiters = _logoutWaiters;
+    _logoutWaiters = [];
+    for (var waiter in waiters) {
+      waiter.complete();
+    }
+  }
+
+  void _onLogoutError(Object? e, dynamic stackTrace) async {
+    developer.log("CredsModel._onLogoutError: error='$e', stackTrace='$stackTrace'");
+    final waiters = _logoutWaiters;
+    _logoutWaiters = [];
+    for (var waiter in waiters) {
+      waiter.completeError(e ?? "Logout Error", stackTrace);
+    }
+  }
+
   _onAuthError(Object? e, dynamic stackTrace) {
     developer.log("CredsModel._onAuthError: error='$e', stackTrace='$stackTrace'");
     final waiters = _loginWaiters;
@@ -211,14 +272,24 @@ class CredsModel with ChangeNotifier {
         developer.log("Got on-login message event, query-string=$queryString");
         final queryParameters = Uri.base.replace(query: queryString).queryParameters;
         developer.log("Got on-login message event, query-parameters=$queryParameters");
-        final String? code = queryParameters['code'];
-        if (code != null) {
-          final String? state = queryParameters['state'];
-          developer.log("Got successful on-login, authCode=$code, state=$state");
-          _onAuthCodeReceived(code);
+        final String? action = queryParameters['action'];
+        if (action == 'logout') {
+          developer.log("Got successful logout callback");
+          _onLogoutComplete();
           final sourceWindow = event.source as html.WindowBase?;
           if (sourceWindow != null) {
             sourceWindow.close();
+          }
+        } else {
+          final String? code = queryParameters['code'];
+          if (code != null) {
+            final String? state = queryParameters['state'];
+            developer.log("Got successful on-login, authCode=$code, state=$state");
+            _onAuthCodeReceived(code);
+            final sourceWindow = event.source as html.WindowBase?;
+            if (sourceWindow != null) {
+              sourceWindow.close();
+            }
           }
         }
       }

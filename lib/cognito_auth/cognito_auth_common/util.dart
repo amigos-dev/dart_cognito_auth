@@ -1,5 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
+import 'access_token.dart';
+import 'id_token.dart';
+import 'refresh_token.dart';
 import 'package:http/http.dart' as http;
 import 'creds.dart';
 import 'dart:developer' as developer;
@@ -107,7 +110,7 @@ Future<Creds> getCredsFromAuthCode({
   required Uri redirectUri,
   http.Client? httpClient,
 }) async {
-  final authTime = DateTime.now().toUtc();
+  final localAuthTime = DateTime.now().toUtc();
   final tokens = await getTokensFromAuthCode(
     tokenUri: tokenUri,
     clientId: clientId,
@@ -116,12 +119,20 @@ Future<Creds> getCredsFromAuthCode({
     redirectUri: redirectUri,
     httpClient: httpClient,
   );
+  final rawRefreshToken = tokens['refresh_token'] as String?;
+  final refreshToken = (rawRefreshToken == null) ? null : RefreshToken(rawToken: rawRefreshToken, createTime: localAuthTime);
+  final rawAccessToken = tokens['access_token'] as String;
+  final rawIdToken = tokens['id_token'] as String;
+  final expireDuration = Duration(seconds: tokens['expires_in'] as int);
+
+  final accessToken = AccessToken(rawToken: rawAccessToken, localAuthTime: localAuthTime);
+  final idToken = IdToken(rawToken: rawIdToken, localAuthTime: localAuthTime);
+
   final creds = Creds(
-    rawAccessToken: tokens['access_token'],
-    rawIdToken: tokens['id_token'],
-    refreshToken: tokens['refresh_token'],
-    expireSeconds: tokens['expires_in'],
-    authTime: authTime,
+    accessToken: accessToken,
+    idToken: idToken,
+    refreshToken: refreshToken,
+    expireDuration: expireDuration,
   );
   return creds;
 }
@@ -130,7 +141,7 @@ Future<Map<String, dynamic>> refreshTokens({
   required Uri tokenUri,
   required String clientId,
   String? clientSecret,
-  required String refreshToken,
+  required String rawRefreshToken,
   http.Client? httpClient,
 }) async {
   final client = httpClient ?? http.Client();
@@ -142,7 +153,7 @@ Future<Map<String, dynamic>> refreshTokens({
     final Map<String, String> queryParameters = {
       "grant_type": "refresh_token",
       "client_id": clientId,
-      "refresh_token": refreshToken,
+      "refresh_token": rawRefreshToken,
     };
     developer.log('Getting tokens from "$tokenUri", headers=$headers, params=$queryParameters');
     final response = await client.post(
@@ -173,23 +184,28 @@ Future<Creds> refreshCreds({
   required Uri tokenUri,
   required String clientId,
   String? clientSecret,
-  required String refreshToken,
+  required RefreshToken refreshToken,
   http.Client? httpClient,
 }) async {
-  final authTime = DateTime.now().toUtc();
+  final localAuthTime = DateTime.now().toUtc();
   final tokens = await refreshTokens(
     tokenUri: tokenUri,
     clientId: clientId,
     clientSecret: clientSecret,
-    refreshToken: refreshToken,
+    rawRefreshToken: refreshToken.rawToken,
     httpClient: httpClient,
   );
+  final rawAccessToken = tokens['access_token'] as String;
+  final rawIdToken = tokens['id_token'] as String;
+  final expireDuration = Duration(seconds: tokens['expires_in'] as int);
+  final accessToken = AccessToken(rawToken: rawAccessToken, localAuthTime: localAuthTime);
+  final idToken = IdToken(rawToken: rawIdToken, localAuthTime: localAuthTime);
+
   final creds = Creds(
-    rawAccessToken: tokens['access_token'],
-    rawIdToken: tokens['id_token'],
+    accessToken: accessToken,
+    idToken: idToken,
     refreshToken: refreshToken,
-    expireSeconds: tokens['expires_in'],
-    authTime: authTime,
+    expireDuration: expireDuration,
   );
   return creds;
 }

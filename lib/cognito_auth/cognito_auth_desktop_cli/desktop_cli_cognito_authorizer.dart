@@ -34,7 +34,7 @@ class DesktopCliCognitoAuthorizer extends CognitoAuthorizer {
 
   factory DesktopCliCognitoAuthorizer({
     required AuthConfig authConfig,
-    String? initialRefreshToken,
+    RefreshToken? initialRefreshToken,
     int? port,
     AsyncKeyValueStore? refreshTokenStore,
     String? refreshTokenStorePathname,

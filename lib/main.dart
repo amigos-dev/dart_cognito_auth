@@ -141,18 +141,20 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            ElevatedButton(
-              onPressed: () {
-                credsModel.loginOrRefresh();
-              },
-              child: const Text('Login'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                credsModel.login(forceNew: true);
-              },
-              child: const Text('Logout'),
-            ),
+            if (!credsModel.isLoggedIn)
+              ElevatedButton(
+                onPressed: () {
+                  credsModel.loginOrRefresh();
+                },
+                child: const Text('Login'),
+              ),
+            if (credsModel.isLoggedIn)
+              ElevatedButton(
+                onPressed: () {
+                  credsModel.logout();
+                },
+                child: const Text('Logout'),
+              ),
             SingleChildScrollView(
               scrollDirection: Axis.vertical,
               child: Text(

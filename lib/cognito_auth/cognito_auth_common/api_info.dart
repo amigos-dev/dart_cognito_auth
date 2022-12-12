@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 import 'util.dart';
 import 'util.dart' as util;
 import 'creds.dart';
+import 'package:meta/meta.dart';
 
+@immutable
 class ApiInfo {
   final Uri apiUri;
   final String? clientSecret;
@@ -15,9 +17,10 @@ class ApiInfo {
   final Uri logoutUri;
   final Uri tokenUri;
   final Uri userInfoUri;
-  late String tokenAuthHeader;
+  final String tokenAuthHeader;
+  final Duration refreshTokenValidity;
 
-  ApiInfo._createFinal({
+  const ApiInfo._createFinal({
     required this.apiUri,
     required this.clientSecret,
     required this.clientId,
@@ -26,31 +29,38 @@ class ApiInfo {
     required this.logoutUri,
     required this.tokenUri,
     required this.userInfoUri,
-  }) {
-    final secretValue = "$clientId:$clientSecret";
-    final secretBase64 = base64.encode(utf8.encode(secretValue));
-    tokenAuthHeader = "Basic $secretBase64";
-  }
+    required this.tokenAuthHeader,
+    required this.refreshTokenValidity,
+  });
 
-  ApiInfo._create(
-    Uri apiUri,
+  factory ApiInfo._create({
+    required Uri apiUri,
     String? clientSecret,
-    String clientId,
-    Uri cognitoUri,
+    required String clientId,
+    required Uri cognitoUri,
     Uri? loginUri,
     Uri? logoutUri,
     Uri? tokenUri,
     Uri? userInfoUri,
-  ) : this._createFinal(
-          apiUri: apiUri,
-          clientSecret: clientSecret,
-          clientId: clientId,
-          cognitoUri: cognitoUri,
-          loginUri: loginUri ?? cognitoUri.resolve('login'),
-          logoutUri: logoutUri ?? cognitoUri.resolve('logout'),
-          tokenUri: tokenUri ?? cognitoUri.resolve('oauth2/token'),
-          userInfoUri: userInfoUri ?? cognitoUri.resolve('oauth2/userInfo'),
-        );
+    Duration? refreshTokenValidity,
+  }) {
+    final secretValue = "$clientId:$clientSecret";
+    final secretBase64 = base64.encode(utf8.encode(secretValue));
+    final tokenAuthHeader = "Basic $secretBase64";
+    final result = ApiInfo._createFinal(
+      apiUri: apiUri,
+      clientSecret: clientSecret,
+      clientId: clientId,
+      cognitoUri: cognitoUri,
+      loginUri: loginUri ?? cognitoUri.resolve('login'),
+      logoutUri: logoutUri ?? cognitoUri.resolve('logout'),
+      tokenUri: tokenUri ?? cognitoUri.resolve('oauth2/token'),
+      userInfoUri: userInfoUri ?? cognitoUri.resolve('oauth2/userInfo'),
+      tokenAuthHeader: tokenAuthHeader,
+      refreshTokenValidity: refreshTokenValidity ?? Duration.zero,
+    );
+    return result;
+  }
 
   static Future<Map<String, dynamic>> _getApiInfoData(Uri apiUri) async {
     final client = http.Client();
@@ -76,14 +86,15 @@ class ApiInfo {
     final data = await _getApiInfoData(apiUri);
     // print(_jsonEncode(data));
     final apiInfo = ApiInfo._create(
-      apiUri,
-      clientSecret,
-      data['user_pool_client_id'],
-      Uri.parse(data['user_pool_endpoint']),
-      optionalParseUri(data['login_uri']),
-      optionalParseUri(data['logout_uri']),
-      optionalParseUri(data['token_endpoint']),
-      optionalParseUri(data['user_info_endpoint']),
+      apiUri: apiUri,
+      clientSecret: clientSecret,
+      clientId: data['user_pool_client_id'],
+      cognitoUri: Uri.parse(data['user_pool_endpoint']),
+      loginUri: optionalParseUri(data['login_uri']),
+      logoutUri: optionalParseUri(data['logout_uri']),
+      tokenUri: optionalParseUri(data['token_endpoint']),
+      userInfoUri: optionalParseUri(data['user_info_endpoint']),
+      refreshTokenValidity: Duration(seconds: data['user_pool_client_refresh_token_validity_seconds']),
     );
     return apiInfo;
   }

@@ -6,5 +6,6 @@ export "api_info.dart";
 export "jwt_token.dart";
 export "access_token.dart";
 export "id_token.dart";
+export "refresh_token.dart";
 export "user_info.dart";
 export "cognito_authorizer.dart";

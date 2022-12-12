@@ -17,9 +17,15 @@ const defaultCognitoUriStr = bool.hasEnvironment('COGNITO_URI') ? String.fromEnv
 /// variable "COGNITO_URI".
 final defaultCognitoUri = (defaultCognitoUriStr == null) ? null : Uri.parse(defaultCognitoUriStr!);
 
-/// The default number of remaining seconds before the access token expires
+/// The default remaining time before the access token expires
 /// at which it will be automatically refreshed before any API call.
-const defaultRefreshGraceSeconds = 60 * 3;
+const defaultRefreshGraceDuration = Duration(minutes: 3);
+
+/// The default remaining time before the refresh token expires
+/// at which loginOrRefresh will force a new login. By default, 12 hours is used.
+const defaultLoginOrRefreshGraceDuration = Duration(hours: 12);
+
+const defaultRefreshTokenValidity = Duration(days: 1);
 
 /// The default API URI String--retrieved if available from environment variable "API_URI".
 const defaultApiUriStr = bool.hasEnvironment('API_URI') ? String.fromEnvironment('API_URI') : null;
@@ -46,10 +52,15 @@ class AuthConfig {
   /// Or null to receive the default scopes (all available scopes).
   final List<String>? scopes;
 
-  /// The number of remaining seconds before the access token expires
+  /// The remaining time before the access token expires
   /// at which it will be automatically refreshed before any API call. By
-  /// default, defaultRefreshGraceSeconds is used.
-  final int refreshGraceSeconds;
+  /// default, defaultRefreshGraceDuration is used.
+  final Duration refreshGraceDuration;
+
+  /// The number of remaining seconds before the refresh token expires
+  /// at which a new login will be forced at loginOrRefresh() time. By
+  /// default, defaultLoginOrRefreshGraceDuration is used.
+  final Duration loginOrRefreshGraceDuration;
 
   /// The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
   /// across sessions. This prefix will be concatenated with the clientID to allow for switchable clients.
@@ -58,15 +69,21 @@ class AuthConfig {
   /// True if a persistent refresh token should be maintained in secure storage.
   final bool usePersistentRefreshToken;
 
+  /// The validity lifetime of a refresh token after issuance. If Duration.zero, it is
+  /// assumed that the refresh token never expires. By default, defaultRefreshTokenValidity is used.
+  final Duration refreshTokenValidity;
+
   /// A const constructor with no default behavior. Internal only.
   const AuthConfig._bare({
     required this.cognitoUri,
     required this.clientId,
     this.clientSecret,
     this.scopes,
-    required this.refreshGraceSeconds,
+    required this.refreshGraceDuration,
+    required this.loginOrRefreshGraceDuration,
     required this.secureStorageRefreshTokenKeyPrefix,
     required this.usePersistentRefreshToken,
+    required this.refreshTokenValidity,
   });
 
   /// Construct a Cognito auth configuration object. Parameters:
@@ -85,10 +102,19 @@ class AuthConfig {
   ///     variable "CLIENT_SECRET". If not provided in environment, then
   ///     no client secret is used.
   ///
-  /// refreshGraceSeconds:
-  ///    The number of remaining seconds before the access token expires
+  /// refreshGraceDuration:
+  ///    The remaining time before the access token expires
   ///    at which it will be automatically refreshed on demand. If null,
   ///    3 minutes is used.
+  ///
+  /// loginOrRefreshGraceDuration:
+  ///    The remaining time before the refresh token expires
+  ///    at which a new login will be forced at loginOrRefresh() time. By
+  ///    default, defaultLoginOrRefreshGraceDuration is used.
+  ///
+  /// refreshTokenValidity:
+  ///    The validity lifetime of a refresh token after issuance. If Duration.zero, it is
+  ///    assumed that the refresh token never expires. By default, defaultRefreshTokenValidity is used.
   ///
   /// secureStorageRefreshTokenKeyPrefix:
   ///    The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
@@ -104,12 +130,16 @@ class AuthConfig {
     String? clientId,
     String? clientSecret,
     List<String>? scopes,
-    int? refreshGraceSeconds,
+    Duration? refreshGraceDuration,
+    Duration? loginOrRefreshGraceDuration,
+    Duration? refreshTokenValidity,
     String? secureStorageRefreshTokenKeyPrefix,
     bool? usePersistentRefreshToken,
   }) {
     cognitoUri = cognitoUri ?? defaultCognitoUri;
-    refreshGraceSeconds = refreshGraceSeconds ?? defaultRefreshGraceSeconds;
+    refreshGraceDuration = refreshGraceDuration ?? defaultRefreshGraceDuration;
+    loginOrRefreshGraceDuration = loginOrRefreshGraceDuration ?? defaultLoginOrRefreshGraceDuration;
+    refreshTokenValidity = refreshTokenValidity ?? defaultRefreshTokenValidity;
     clientId = clientId ?? defaultClientId;
     clientSecret = clientSecret ?? defaultClientSecret;
     secureStorageRefreshTokenKeyPrefix = secureStorageRefreshTokenKeyPrefix ?? defaultSecureStorageRefreshTokenKeyPrefix;
@@ -119,7 +149,9 @@ class AuthConfig {
       clientId: clientId!,
       clientSecret: clientSecret,
       scopes: (scopes == null) ? null : List<String>.unmodifiable(scopes),
-      refreshGraceSeconds: refreshGraceSeconds,
+      refreshGraceDuration: refreshGraceDuration,
+      loginOrRefreshGraceDuration: loginOrRefreshGraceDuration,
+      refreshTokenValidity: refreshTokenValidity,
       secureStorageRefreshTokenKeyPrefix: secureStorageRefreshTokenKeyPrefix,
       usePersistentRefreshToken: usePersistentRefreshToken,
     );
@@ -142,10 +174,15 @@ class AuthConfig {
   ///     variable "CLIENT_SECRET". If not provided in environment, then
   ///     no client secret is used.
   ///
-  /// refreshGraceSeconds:
-  ///    The number of remaining seconds before the access token expires
+  /// refreshGraceDuration:
+  ///    The amount of time before the access token expires
   ///    at which it will be automatically refreshed on demand. If null,
   ///    3 minutes is used.
+  ///
+  /// loginOrRefreshGraceDuration:
+  ///    The remaining time before the refresh token expires
+  ///    at which a new login will be forced at loginOrRefresh() time. By
+  ///    default, defaultLoginOrRefreshGraceDuration is used.
   ///
   /// secureStorageRefreshTokenKeyPrefix:
   ///    The key prefix within flutter_secure_storage at which a persistent refresh token will be stored
@@ -160,7 +197,8 @@ class AuthConfig {
     Uri? apiUri,
     String? clientSecret,
     List<String>? scopes,
-    int? refreshGraceSeconds,
+    Duration? refreshGraceDuration,
+    Duration? loginOrRefreshGraceDuration,
     String? secureStorageRefreshTokenKeyPrefix,
     bool? usePersistentRefreshToken,
   }) async {
@@ -175,7 +213,9 @@ class AuthConfig {
       clientId: apiInfo.clientId,
       clientSecret: clientSecret,
       scopes: scopes,
-      refreshGraceSeconds: refreshGraceSeconds,
+      refreshGraceDuration: refreshGraceDuration,
+      loginOrRefreshGraceDuration: loginOrRefreshGraceDuration,
+      refreshTokenValidity: apiInfo.refreshTokenValidity,
       secureStorageRefreshTokenKeyPrefix: secureStorageRefreshTokenKeyPrefix,
       usePersistentRefreshToken: usePersistentRefreshToken,
     );
@@ -200,6 +240,8 @@ class AuthConfig {
 
   @override
   String toString() {
-    return "AuthConfig(cognitoUri='$cognitoUri', clientId='$clientId', clientSecret='clientSecret', scopes=$scopes, refreshGraceSeconds=$refreshGraceSeconds)";
+    return "AuthConfig(cognitoUri='$cognitoUri', clientId='$clientId', clientSecret='clientSecret', "
+        "scopes=$scopes, refreshGraceDuration=$refreshGraceDuration, loginOrRefreshGraceDuration=$loginOrRefreshGraceDuration, "
+        "refreshTokenValidity=$refreshTokenValidity)";
   }
 }
