@@ -1,6 +1,23 @@
 # dart_cognito_auth
 
 
+## Build
+For Linux:
+```
+flutter build -d Linux 
+```
+
+## Execution
+```
+flutter run lib/main.dart --dart-define CLIENT-SECRET=<secret string> --web-port=8501 -d Linux
+```
+
+bin/login_cli.dart is the commandline app that can be run with:
+
+```
+dart run bin/login_cli.dart -s <secret string>
+```
+
 ## Prerequisites
 
 ## Linux prereq
