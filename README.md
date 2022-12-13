@@ -1,16 +1,17 @@
-# cognito_login_cli
+# dart_cognito_auth
 
-A new Flutter project.
 
-## Getting Started
+## Prerequisites
 
-This project is a starting point for a Flutter application.
+## Linux prereq
+```
+sudo apt reinstall libsecret-tools libjsoncpp1 libsecret-1-0 libjsoncpp-dev libsecret-1-dev -y
+```
 
-A few resources to get you started if this is your first Flutter project:
+Before native generated code modifications had been done in platform specific subdirectory cleanup and re-generating of platform code is done via:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```
+rm -fr linux
+flutter create --platforms=linux .
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
