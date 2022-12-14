@@ -87,7 +87,10 @@
                 "CLIENT_SECRET=${input:clientSecret}",
                 "--dart-define",
                 "PORT=8501",
-            ]
+            ],
+            "env": {
+                "FLUTTER_CHROME_USER_DATA_DIR": "${workspaceFolder}/private/web_user_data"
+            },
         },
         {
             "name": "dart_cognito_login_cli (profile mode)",
