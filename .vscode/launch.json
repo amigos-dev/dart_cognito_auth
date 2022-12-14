@@ -91,7 +91,7 @@
             "env": {
                 "UNWRAPPED_CHROME_EXECUTABLE": "${env:CHROME_EXECUTABLE}",
                 "CHROME_EXECUTABLE": "${workspaceFolder}/scripts/chrome.sh",
-                "FLUTTER_CHROME_USER_DATA_DIR": "${workspaceFolder}/private/web_user_data"
+                "FLUTTER_CHROME_USER_DATA_DIR": "${workspaceFolder}/private/web-user-data"
             },
         },
         {
